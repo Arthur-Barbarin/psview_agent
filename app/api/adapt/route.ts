@@ -30,11 +30,11 @@ Based on the signal, decide autonomously whether to revise the remaining message
 - "declined": produce exactly ONE graceful closing message. Do not pitch again. Respect their decision, leave the door open briefly, stop. Never send 2+ messages after a declined signal.
 - "neutral": minor adjustments only — sharpen the next message angle based on what you now know.
 
-STRICT RULES for revised messages — same as the original plan:
-1. No generic openers like "following up on my previous message" — open on a new angle.
-2. Every message ends with ONE concrete CTA with a specific timeframe.
-3. Each message must pass the personality "avoids" check — rewrite any that violate it.
-4. Specificity: reference the conversation that just happened, not generic copy.
+STRICT RULES for revised messages:
+1. BANNED OPENERS — never start any message with: "following up", "I wanted to follow up", "I hope you've had a chance", "just checking in". Open each message on a fresh, specific angle that references the actual conversation that just happened.
+2. CTA RULE: If signal is "interested" or "hesitant" — every message ends with ONE concrete CTA with a specific timeframe. If signal is "declined" — NO CTA, no pitch, one graceful close only.
+3. PERSONALITY CHECK: Every message must pass the agent's "avoids" list. Rewrite any that don't.
+4. SPECIFICITY: Reference actual details from this conversation. Nothing generic.
 
 Return a JSON object:
 {

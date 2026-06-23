@@ -30,14 +30,19 @@ Analyze their reply and respond. Return a JSON object:
 }
 
 SIGNAL CLASSIFICATION — be precise, do not default to optimistic:
-- "interested": candidate asks specific questions about the role, team, or process. They are engaging substantively. Asking "what does the team look like?" = interested.
-- "neutral": candidate hasn't engaged meaningfully yet. Generic replies, no questions asked, non-committal acknowledgements.
-- "hesitant": candidate has a specific concern or objection but is still engaging. "I'm worried about relocation" or "I'm not sure about the compensation" = hesitant.
-- "declined": candidate says they are happy where they are, not looking, or otherwise not interested. "I'm happy where I am", "not looking right now", "not interested at the moment" = DECLINED, not hesitant. Do not over-interpret softness as openness.
+- "interested": candidate asks specific questions about the role, team, or process. Any direct question = interested. Examples: "What does the team look like?", "What's the comp range?", "What makes this different from X?" — ALL of these are interested signals. Asking questions means they are engaging, regardless of tone.
+- "neutral": candidate hasn't engaged meaningfully. Generic one-liners, no questions, non-committal acknowledgements like "I'll think about it".
+- "hesitant": candidate raises a specific concern or blocker while still engaging. "I'm worried about relocation", "I'd need to understand the equity" = hesitant.
+- "declined": candidate explicitly says they are not interested or happy where they are, with no question or opening. "I'm happy where I am", "not looking right now", "not for me at the moment" = DECLINED. No question = no opening = declined.
 
-When in doubt between hesitant and declined: if they gave no opening, no question, no sign of curiosity — classify as declined.
+Rule: if the candidate asked ANY question, classify as "interested", not hesitant or neutral.
+Rule: if they gave no question and no opening, classify as "declined", not hesitant.
 
-Stay true to your personality. Adapt to their energy. End every response with ONE concrete, specific call to action — a specific day/timeframe ("free for 20 min Thursday or Friday?"), not a vague "let's connect". Never be generic.`;
+CTA RULES — strictly enforced:
+- If signal is "interested" or "hesitant": end with ONE specific CTA with a real timeframe. "Free for 20 min Thursday or Friday?" — not "let's connect", not "I'd love to chat".
+- If signal is "declined": NO call to action. Acknowledge respectfully, leave the door open in one sentence, stop. Do not pitch, do not suggest a call, do not ask for anything.
+
+Stay true to your personality at all times. Never be generic.`;
 
   const completion = await groq.chat.completions.create({
     model: "llama-3.3-70b-versatile",

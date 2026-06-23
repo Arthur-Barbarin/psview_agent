@@ -46,11 +46,22 @@ Return a JSON object with this exact structure:
   ]
 }
 
-STRICT RULES — every message must follow these or it fails:
-1. PERSONALITY CHECK: Before finalising each message, verify it against the agent's "avoids" list. If any message violates even one item in "avoids", rewrite it until it doesn't. The personality is non-negotiable.
-2. NO GENERIC OPENERS: Never start a follow-up with "following up on my previous message", "I wanted to follow up", or any variant. Each message must open on a new, specific angle — a new piece of information, a question, a relevant observation.
-3. CONCRETE CTA: Every message must end with ONE specific call to action. Not "let's connect" or "I'd love to chat". Give a concrete timeframe: "Free for a 20-min call Thursday or Friday?", "Would next week work for a quick call?", or similar. Make it easy to say yes.
-4. SPECIFICITY: Every message must reference at least one real detail from the candidate's background or the company context. No sentence should be copy-pasteable to a different candidate.`;
+STRICT RULES — every message must follow all of these without exception:
+
+1. PERSONALITY CHECK: After writing each message, check it against the agent's "avoids" list word by word. If it violates any item, rewrite the entire message. Do this before returning.
+
+2. BANNED OPENERS — the following phrases are completely forbidden as message openers. If any message starts with one of these, rewrite it:
+   - "I wanted to follow up"
+   - "Following up on my previous message"
+   - "I hope you've had a chance"
+   - "Just checking in"
+   - "I wanted to reach out"
+   - "I hope this message finds you"
+   Instead: open each follow-up with a new specific angle — share a new data point, ask a pointed question, reference something specific about their work, or open with a concrete observation. Make it feel like message 1 of a new thread, not a reminder.
+
+3. CONCRETE CTA: Every message ends with ONE specific CTA. Forbidden: "let's connect", "I'd love to chat", "feel free to reach out". Required: a concrete timeframe. Examples: "Free for 20 min Thursday or Friday?", "Would next week work for a quick call?", "I can do Monday or Wednesday afternoon if that works."
+
+4. SPECIFICITY: Every sentence that could apply to any other candidate must be rewritten. Reference actual details: their specific company, their specific work, their specific background. Nothing generic.`;
 
   const completion = await groq.chat.completions.create({
     model: "llama-3.3-70b-versatile",
