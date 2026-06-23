@@ -1,21 +1,30 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AgentConfig, Candidate, Company, Plan } from "./types";
 import CompanyForm from "./components/CompanyForm";
 import AgentConfigView from "./components/AgentConfigView";
 import ConversationSim from "./components/ConversationSim";
 import StepIndicator from "./components/StepIndicator";
+import { usePersistedState } from "./hooks/usePersistedState";
 
 type Step = 1 | 2 | 3;
 
 export default function Home() {
-  const [step, setStep] = useState<Step>(1);
-  const [company, setCompany] = useState<Company | null>(null);
-  const [agentConfig, setAgentConfig] = useState<AgentConfig | null>(null);
-  const [candidate, setCandidate] = useState<Candidate | null>(null);
-  const [intent, setIntent] = useState<string>("");
-  const [plan, setPlan] = useState<Plan | null>(null);
+  const [step, setStep] = usePersistedState<Step>("psv_step", 1);
+  const [company, setCompany] = usePersistedState<Company | null>("psv_company", null);
+  const [agentConfig, setAgentConfig] = usePersistedState<AgentConfig | null>("psv_config", null);
+  const [candidate, setCandidate] = usePersistedState<Candidate | null>("psv_candidate", null);
+  const [intent, setIntent] = usePersistedState<string>("psv_intent", "");
+  const [plan, setPlan] = usePersistedState<Plan | null>("psv_plan", null);
   const [loading, setLoading] = useState(false);
+  const [restored, setRestored] = useState(false);
+
+  useEffect(() => {
+    if (step > 1) setRestored(true);
+    const t = setTimeout(() => setRestored(false), 3000);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleCompanySubmit = async (co: Company) => {
     setLoading(true);
@@ -41,6 +50,15 @@ export default function Home() {
     setStep(3);
   };
 
+  const handleReset = () => {
+    setStep(1);
+    setCompany(null);
+    setAgentConfig(null);
+    setCandidate(null);
+    setIntent("");
+    setPlan(null);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -60,6 +78,13 @@ export default function Home() {
 
       {/* Main */}
       <main className="max-w-2xl mx-auto px-6 py-10">
+        {restored && (
+          <div className="mb-6 bg-green-50 border border-green-200 rounded-lg px-4 py-3 flex items-center gap-3">
+            <span className="text-green-600">↺</span>
+            <p className="text-sm text-green-700 font-medium">Session restored — your previous context is still here.</p>
+          </div>
+        )}
+
         {loading && (
           <div className="mb-6 bg-violet-50 border border-violet-200 rounded-lg px-4 py-3 flex items-center gap-3">
             <div className="w-4 h-4 border-2 border-violet-600 border-t-transparent rounded-full animate-spin" />
@@ -74,6 +99,7 @@ export default function Home() {
         {step === 3 && plan && agentConfig && company && candidate && (
           <ConversationSim
             plan={plan}
+            setPlan={setPlan}
             config={agentConfig}
             company={company}
             candidate={candidate}
@@ -88,7 +114,7 @@ export default function Home() {
           No messages are sent. This is a simulation environment.
           {step > 1 && (
             <button
-              onClick={() => { setStep(1); setAgentConfig(null); setPlan(null); }}
+              onClick={handleReset}
               className="ml-3 text-violet-500 hover:text-violet-700 font-medium"
             >
               Start over

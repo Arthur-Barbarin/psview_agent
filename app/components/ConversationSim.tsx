@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { AgentConfig, Candidate, Company, ConversationMessage, Plan, ReplyResult } from "../types";
+import { AgentConfig, Candidate, Company, ConversationMessage, Message, Plan, ReplyResult } from "../types";
 import ReasoningBox from "./ReasoningBox";
 
 const SIGNAL_COLOR = {
@@ -10,14 +10,23 @@ const SIGNAL_COLOR = {
   declined: "bg-red-100 text-red-700",
 };
 
+const SIGNAL_LABEL = {
+  interested: "🟢 Interested",
+  neutral: "⚪ Neutral",
+  hesitant: "🟡 Hesitant",
+  declined: "🔴 Declined",
+};
+
 export default function ConversationSim({
   plan,
+  setPlan,
   config,
   company,
   candidate,
   intent,
 }: {
   plan: Plan;
+  setPlan: (p: Plan) => void;
   config: AgentConfig;
   company: Company;
   candidate: Candidate;
@@ -29,19 +38,25 @@ export default function ConversationSim({
   const [lastReason, setLastReason] = useState<ReplyResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [showPlanReason, setShowPlanReason] = useState(false);
+  const [planRevised, setPlanRevised] = useState(false);
+  const [adaptReasoning, setAdaptReasoning] = useState<string | null>(null);
+  const [showAdaptReason, setShowAdaptReason] = useState(true);
 
   const currentMsg = plan.messages[activeMessage];
 
   const sendReply = async () => {
     if (!reply.trim()) return;
     setLoading(true);
+
     const newConv: ConversationMessage[] = [
       ...conversation,
       { role: "agent", content: currentMsg.body },
       { role: "candidate", content: reply },
     ];
+
     try {
-      const res = await fetch("/api/reply", {
+      // Step 1: get agent reply + signal
+      const replyRes = await fetch("/api/reply", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -53,10 +68,44 @@ export default function ConversationSim({
           candidateReply: reply,
         }),
       });
-      const result: ReplyResult = await res.json();
+      const result: ReplyResult = await replyRes.json();
       setLastReason(result);
-      setConversation([...newConv, { role: "agent", content: result.response }]);
+
+      const updatedConv: ConversationMessage[] = [
+        ...newConv,
+        { role: "agent", content: result.response },
+      ];
+      setConversation(updatedConv);
       setReply("");
+
+      // Step 2: adapt remaining messages based on signal
+      const remaining = plan.messages.slice(activeMessage + 1);
+      if (remaining.length > 0) {
+        const adaptRes = await fetch("/api/adapt", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            company,
+            personality: config.personality,
+            candidate,
+            intent,
+            conversation: updatedConv,
+            signal: result.signal,
+            remainingMessages: remaining,
+          }),
+        });
+        const adapted = await adaptRes.json();
+        if (adapted.revised) {
+          const newMessages: Message[] = [
+            ...plan.messages.slice(0, activeMessage + 1),
+            ...adapted.messages,
+          ];
+          setPlan({ ...plan, messages: newMessages });
+          setPlanRevised(true);
+          setAdaptReasoning(adapted.reasoning);
+          setShowAdaptReason(true);
+        }
+      }
     } finally {
       setLoading(false);
     }
@@ -68,6 +117,27 @@ export default function ConversationSim({
         <h2 className="text-lg font-semibold text-gray-900">Conversation simulator</h2>
         <p className="text-sm text-gray-500 mt-0.5">No real messages sent. Simulate candidate replies to watch the agent react.</p>
       </div>
+
+      {/* Plan revised banner */}
+      {planRevised && adaptReasoning && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg overflow-hidden">
+          <div className="px-4 py-3 flex items-center gap-2">
+            <span className="text-amber-600 font-bold">↻</span>
+            <p className="text-sm font-medium text-amber-800">Agent revised its strategy based on candidate signal</p>
+            <button
+              onClick={() => setShowAdaptReason(!showAdaptReason)}
+              className="ml-auto text-xs text-amber-600 hover:text-amber-800 font-medium"
+            >
+              {showAdaptReason ? "Hide" : "Show"} reasoning
+            </button>
+          </div>
+          {showAdaptReason && (
+            <div className="px-4 pb-3 text-xs text-amber-700 leading-relaxed border-t border-amber-200 pt-2">
+              {adaptReasoning}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Strategy overview */}
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
@@ -96,14 +166,17 @@ export default function ConversationSim({
           {plan.messages.map((m, i) => (
             <button
               key={i}
-              onClick={() => { setActiveMessage(i); setConversation([]); setLastReason(null); }}
+              onClick={() => { setActiveMessage(i); setConversation([]); setLastReason(null); setPlanRevised(false); setAdaptReasoning(null); }}
               className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium border transition-colors ${
                 activeMessage === i
                   ? "bg-violet-600 text-white border-violet-600"
+                  : i > activeMessage && planRevised
+                  ? "bg-amber-50 text-amber-700 border-amber-300"
                   : "bg-white text-gray-600 border-gray-200 hover:border-violet-300"
               }`}
             >
               {m.channel} #{m.step}
+              {i > activeMessage && planRevised && <span className="ml-1">↻</span>}
             </button>
           ))}
         </div>
@@ -151,12 +224,11 @@ export default function ConversationSim({
         </div>
       )}
 
-      {/* Last reasoning */}
+      {/* Last reasoning + signal */}
       {lastReason && (
         <div className="space-y-2">
           <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${SIGNAL_COLOR[lastReason.signal]}`}>
-            <span>Signal detected:</span>
-            <span className="capitalize">{lastReason.signal}</span>
+            {SIGNAL_LABEL[lastReason.signal]}
           </div>
           <ReasoningBox reasoning={lastReason.reasoning} />
         </div>
