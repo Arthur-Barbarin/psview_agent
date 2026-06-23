@@ -38,6 +38,7 @@ Think carefully. The personality must be specific to this company, not generic. 
     messages: [{ role: "user", content: prompt }],
     response_format: { type: "json_object" },
     temperature: 0.7,
+    max_tokens: 800,
   });
 
   const result = JSON.parse(completion.choices[0].message.content || "{}");

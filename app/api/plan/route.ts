@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
   const prompt = `You are an autonomous recruiting agent with the following personality:
 
 AGENT PERSONALITY:
-${JSON.stringify(personality, null, 2)}
+${JSON.stringify(personality)}
 
 COMPANY CONTEXT:
 ${company.name} — ${company.description}

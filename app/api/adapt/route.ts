@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
   const prompt = `You are an autonomous recruiting agent mid-conversation. You just read a candidate's reply and detected a signal.
 
 YOUR PERSONALITY:
-${JSON.stringify(personality, null, 2)}
+${JSON.stringify(personality)}
 
 COMPANY: ${company.name} — ${company.description}
 CANDIDATE: ${candidate.name}, ${candidate.role}
@@ -22,7 +22,7 @@ ${conversation.map((m: { role: string; content: string }) => `[${m.role === "age
 SIGNAL DETECTED: ${signal}
 
 REMAINING PLANNED MESSAGES (before this reply):
-${JSON.stringify(remainingMessages, null, 2)}
+${JSON.stringify(remainingMessages)}
 
 Based on the signal, decide autonomously whether to revise the remaining messages.
 - "interested": compress or accelerate — cut soft nurture messages, move straight to a concrete next step (schedule a call, intro to the team). Max 1-2 messages.
@@ -46,11 +46,11 @@ Return a JSON object:
 Be decisive. When in doubt, fewer messages is better than more.`;
 
   const completion = await groq.chat.completions.create({
-    model: "llama-3.3-70b-versatile",
+    model: "llama-3.1-8b-instant",
     messages: [{ role: "user", content: prompt }],
     response_format: { type: "json_object" },
     temperature: 0.7,
-    max_tokens: 2000,
+    max_tokens: 1000,
   });
 
   const result = JSON.parse(completion.choices[0].message.content || "{}");
