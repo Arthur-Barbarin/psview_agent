@@ -1,6 +1,8 @@
 import Groq from "groq-sdk";
 import { NextRequest, NextResponse } from "next/server";
 
+export const maxDuration = 60;
+
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 export async function POST(req: NextRequest) {

@@ -32,6 +32,11 @@ export default function Home() {
     setLoading(true);
     setApiError(null);
     setCompany(co);
+    // Reset downstream state when re-configuring for a new company
+    setCandidate(null);
+    setIntent("");
+    setPlan(null);
+    setCritique(null);
     try {
       const res = await fetch("/api/configure", {
         method: "POST",
@@ -113,6 +118,7 @@ export default function Home() {
             plan={plan}
             setPlan={setPlan}
             critique={critique}
+            setCritique={setCritique}
             config={agentConfig}
             company={company}
             candidate={candidate}

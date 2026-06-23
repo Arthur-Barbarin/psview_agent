@@ -3,6 +3,8 @@ import { useState } from "react";
 import { AgentConfig, Candidate, Company, CritiqueResult, Plan } from "../types";
 import ReasoningBox from "./ReasoningBox";
 
+type PendingPlan = { plan: Plan; critique: CritiqueResult; candidate: Candidate; intent: string };
+
 export default function AgentConfigView({
   config,
   company,
@@ -17,6 +19,8 @@ export default function AgentConfigView({
   const [intent, setIntent] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingStage, setLoadingStage] = useState("");
+  const [critiqueWarning, setCritiqueWarning] = useState(false);
+  const [pending, setPending] = useState<PendingPlan | null>(null);
 
   const set = (k: keyof Candidate) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setCandidate((c) => ({ ...c, [k]: e.target.value }));
@@ -26,6 +30,12 @@ export default function AgentConfigView({
   const handlePlan = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setCritiqueWarning(false);
+    setPending(null);
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 55000);
+
     try {
       // Step 1: Plan
       setLoadingStage("Planning outreach sequence…");
@@ -33,27 +43,61 @@ export default function AgentConfigView({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ company, personality, candidate, intent }),
+        signal: controller.signal,
       });
       const plan: Plan = await res.json();
+      if ((plan as { error?: string }).error) throw new Error((plan as { error?: string }).error);
 
       // Step 2: Critique — self-verification pass
       setLoadingStage("Agent self-checking messages…");
-      const critiqueRes = await fetch("/api/critique", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ personality, messages: plan.messages }),
-      });
-      const critique: CritiqueResult = await critiqueRes.json();
+      let critique: CritiqueResult;
+      try {
+        const critiqueRes = await fetch("/api/critique", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ personality, messages: plan.messages }),
+          signal: controller.signal,
+        });
+        const critiqueData: CritiqueResult & { error?: string } = await critiqueRes.json();
 
-      // Use auto-fixed messages if violations were found
-      const finalPlan: Plan = critique.violations?.length > 0
-        ? { ...plan, messages: critique.messages }
-        : plan;
+        if (critiqueData.error) {
+          // Critique failed — proceed with original, show warning
+          setCritiqueWarning(true);
+          critique = { passed: true, violations: [], reasoning: "", messages: plan.messages };
+        } else if (
+          critiqueData.messages &&
+          critiqueData.messages.length === plan.messages.length
+        ) {
+          // Valid response — use fixed messages if violations found
+          critique = critiqueData;
+        } else {
+          // Length mismatch — reordering guard, use original messages
+          setCritiqueWarning(true);
+          critique = { ...critiqueData, messages: plan.messages };
+        }
+      } catch {
+        setCritiqueWarning(true);
+        critique = { passed: true, violations: [], reasoning: "", messages: plan.messages };
+      }
 
-      onPlan(candidate, intent, finalPlan, critique);
+      const finalPlan: Plan =
+        critique.violations?.length > 0
+          ? { ...plan, messages: critique.messages }
+          : plan;
+
+      // If fit score < 4, gate on user confirmation
+      if (plan.fitCheck && !plan.fitCheck.shouldReach) {
+        setPending({ plan: finalPlan, critique, candidate, intent });
+      } else {
+        onPlan(candidate, intent, finalPlan, critique);
+      }
+    } catch (err: unknown) {
+      const isAbort = err instanceof Error && err.name === "AbortError";
+      setLoadingStage(isAbort ? "Request timed out — please try again." : `Error: ${String(err)}`);
+      setTimeout(() => setLoadingStage(""), 4000);
     } finally {
+      clearTimeout(timeout);
       setLoading(false);
-      setLoadingStage("");
     }
   };
 
@@ -102,6 +146,46 @@ export default function AgentConfigView({
         </Section>
       </div>
 
+      {/* Low fit gate — show before form submission, or after plan if fit is weak */}
+      {pending && (
+        <div className="bg-amber-50 border border-amber-300 rounded-lg p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="text-amber-600 font-bold text-sm">⚠ Agent recommends against reaching out</span>
+            <span className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full bg-amber-200 text-amber-800">
+              Fit score: {pending.plan.fitCheck?.score ?? "?"}/10
+            </span>
+          </div>
+          <p className="text-xs text-gray-600">{pending.plan.fitCheck?.reasoning}</p>
+          {(pending.plan.fitCheck?.concerns ?? []).length > 0 && (
+            <ul className="space-y-0.5">
+              {(pending.plan.fitCheck?.concerns ?? []).map((c, i) => (
+                <li key={i} className="text-xs text-amber-700 flex gap-1.5"><span>·</span>{c}</li>
+              ))}
+            </ul>
+          )}
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={() => setPending(null)}
+              className="flex-1 text-xs text-gray-500 hover:text-gray-700 font-medium py-2 border border-gray-200 rounded-lg bg-white transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => { onPlan(pending.candidate, pending.intent, pending.plan, pending.critique); setPending(null); }}
+              className="flex-1 text-xs text-amber-700 hover:text-amber-900 font-semibold py-2 border border-amber-300 rounded-lg bg-amber-100 hover:bg-amber-200 transition-colors"
+            >
+              Plan anyway →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {critiqueWarning && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-3">
+          <p className="text-xs text-yellow-700">⚠ Self-check unavailable — messages shown as generated. Groq may have returned an unexpected format.</p>
+        </div>
+      )}
+
       <form onSubmit={handlePlan} className="space-y-4">
         <div>
           <h3 className="text-sm font-semibold text-gray-900 mb-1">Target candidate</h3>
@@ -128,7 +212,7 @@ export default function AgentConfigView({
 
         <button
           type="submit"
-          disabled={!ready || loading}
+          disabled={!ready || loading || !!pending}
           className="w-full bg-violet-600 hover:bg-violet-700 disabled:bg-gray-200 disabled:text-gray-400 text-white font-medium py-2.5 px-4 rounded-lg transition-colors text-sm"
         >
           {loading ? "Working…" : "Generate message sequence →"}

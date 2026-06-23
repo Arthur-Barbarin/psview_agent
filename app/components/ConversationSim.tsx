@@ -21,6 +21,7 @@ export default function ConversationSim({
   plan,
   setPlan,
   critique,
+  setCritique,
   config,
   company,
   candidate,
@@ -29,6 +30,7 @@ export default function ConversationSim({
   plan: Plan;
   setPlan: (p: Plan) => void;
   critique: CritiqueResult | null;
+  setCritique: (c: CritiqueResult | null) => void;
   config: AgentConfig;
   company: Company;
   candidate: Candidate;
@@ -54,6 +56,9 @@ export default function ConversationSim({
       { role: "candidate", content: reply },
     ];
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 55000);
+
     try {
       const replyRes = await fetch("/api/reply", {
         method: "POST",
@@ -62,6 +67,7 @@ export default function ConversationSim({
           company, personality: config.personality, candidate, intent,
           conversation: newConv, candidateReply: reply,
         }),
+        signal: controller.signal,
       });
       const result: ReplyResult = await replyRes.json();
       setLastReason(result);
@@ -81,20 +87,59 @@ export default function ConversationSim({
             company, personality: config.personality, candidate, intent,
             conversation: updatedConv, signal: result.signal, remainingMessages: remaining,
           }),
+          signal: controller.signal,
         });
         const adapted = await adaptRes.json();
         if (adapted.revised) {
+          const revisedMessages: Message[] = adapted.messages;
           const newMessages: Message[] = [
             ...plan.messages.slice(0, activeMessageIndex + 1),
-            ...adapted.messages,
+            ...revisedMessages,
           ];
-          setPlan({ ...plan, messages: newMessages });
+          const newPlan = { ...plan, messages: newMessages };
+          setPlan(newPlan);
           setPlanRevised(true);
           setAdaptReasoning(adapted.reasoning);
           setShowAdaptReason(true);
+
+          // Run critique on adapted messages to close the symmetry loop
+          try {
+            const adaptCritiqueRes = await fetch("/api/critique", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ personality: config.personality, messages: revisedMessages }),
+              signal: controller.signal,
+            });
+            const adaptCritique: CritiqueResult & { error?: string } = await adaptCritiqueRes.json();
+
+            if (!adaptCritique.error && adaptCritique.messages?.length === revisedMessages.length) {
+              setCritique(adaptCritique);
+              // Apply any auto-fixes from the critique
+              if ((adaptCritique.violations?.length ?? 0) > 0) {
+                const fixedMessages: Message[] = [
+                  ...plan.messages.slice(0, activeMessageIndex + 1),
+                  ...adaptCritique.messages,
+                ];
+                setPlan({ ...newPlan, messages: fixedMessages });
+              }
+            } else {
+              // Critique unavailable or length mismatch — clear stale critique banner
+              setCritique(null);
+            }
+          } catch {
+            // If critique of adapted plan fails, clear the stale initial critique banner
+            setCritique(null);
+          }
         }
       }
+    } catch (err: unknown) {
+      const isAbort = err instanceof Error && err.name === "AbortError";
+      if (isAbort) {
+        // Surface a brief error without crashing
+        setLastReason({ signal: "neutral", response: "", reasoning: "Request timed out. Please try again." });
+      }
     } finally {
+      clearTimeout(timeout);
       setLoading(false);
     }
   };
@@ -222,7 +267,7 @@ export default function ConversationSim({
       )}
 
       {/* Signal */}
-      {lastReason && (
+      {lastReason && lastReason.signal && (
         <div className="space-y-2">
           <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${SIGNAL_COLOR[lastReason.signal]}`}>
             {SIGNAL_LABEL[lastReason.signal]}
