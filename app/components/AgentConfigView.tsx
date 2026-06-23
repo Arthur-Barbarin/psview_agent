@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { AgentConfig, Candidate, Company, Plan } from "../types";
+import { AgentConfig, Candidate, Company, CritiqueResult, Plan } from "../types";
 import ReasoningBox from "./ReasoningBox";
 
 export default function AgentConfigView({
@@ -10,12 +10,13 @@ export default function AgentConfigView({
 }: {
   config: AgentConfig;
   company: Company;
-  onPlan: (candidate: Candidate, intent: string, plan: Plan) => void;
+  onPlan: (candidate: Candidate, intent: string, plan: Plan, critique: CritiqueResult) => void;
 }) {
   const { personality } = config;
   const [candidate, setCandidate] = useState<Candidate>({ name: "", role: "", background: "" });
   const [intent, setIntent] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingStage, setLoadingStage] = useState("");
 
   const set = (k: keyof Candidate) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setCandidate((c) => ({ ...c, [k]: e.target.value }));
@@ -26,15 +27,33 @@ export default function AgentConfigView({
     e.preventDefault();
     setLoading(true);
     try {
+      // Step 1: Plan
+      setLoadingStage("Planning outreach sequence…");
       const res = await fetch("/api/plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ company, personality, candidate, intent }),
       });
-      const plan = await res.json();
-      onPlan(candidate, intent, plan);
+      const plan: Plan = await res.json();
+
+      // Step 2: Critique — self-verification pass
+      setLoadingStage("Agent self-checking messages…");
+      const critiqueRes = await fetch("/api/critique", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ personality, messages: plan.messages }),
+      });
+      const critique: CritiqueResult = await critiqueRes.json();
+
+      // Use auto-fixed messages if violations were found
+      const finalPlan: Plan = critique.violations?.length > 0
+        ? { ...plan, messages: critique.messages }
+        : plan;
+
+      onPlan(candidate, intent, finalPlan, critique);
     } finally {
       setLoading(false);
+      setLoadingStage("");
     }
   };
 
@@ -88,48 +107,31 @@ export default function AgentConfigView({
           <h3 className="text-sm font-semibold text-gray-900 mb-1">Target candidate</h3>
           <p className="text-xs text-gray-400 mb-3">The agent will tailor the sequence to this person.</p>
           <div className="space-y-3">
-            <input
-              className="input"
-              placeholder="Candidate name"
-              value={candidate.name}
-              onChange={set("name")}
-              required
-            />
-            <input
-              className="input"
-              placeholder="Current role (e.g. Staff ML Engineer at Meta)"
-              value={candidate.role}
-              onChange={set("role")}
-              required
-            />
-            <textarea
-              className="input min-h-[70px]"
-              placeholder="Brief background — what they've built, where they've worked, anything relevant"
-              value={candidate.background}
-              onChange={set("background")}
-              required
-            />
+            <input className="input" placeholder="Candidate name" value={candidate.name} onChange={set("name")} required />
+            <input className="input" placeholder="Current role (e.g. Staff ML Engineer at Meta)" value={candidate.role} onChange={set("role")} required />
+            <textarea className="input min-h-[70px]" placeholder="Brief background — what they've built, where they've worked, anything relevant" value={candidate.background} onChange={set("background")} required />
           </div>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Outreach intent</label>
           <p className="text-xs text-gray-400 mb-1.5">What is the agent trying to accomplish?</p>
-          <input
-            className="input"
-            placeholder="e.g. Recruit for a senior ML engineer role focused on inference optimization"
-            value={intent}
-            onChange={(e) => setIntent(e.target.value)}
-            required
-          />
+          <input className="input" placeholder="e.g. Recruit for a senior ML engineer role focused on inference optimization" value={intent} onChange={(e) => setIntent(e.target.value)} required />
         </div>
+
+        {loading && (
+          <div className="flex items-center gap-3 bg-violet-50 border border-violet-200 rounded-lg px-4 py-3">
+            <div className="w-4 h-4 border-2 border-violet-600 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+            <p className="text-sm text-violet-700 font-medium">{loadingStage}</p>
+          </div>
+        )}
 
         <button
           type="submit"
           disabled={!ready || loading}
           className="w-full bg-violet-600 hover:bg-violet-700 disabled:bg-gray-200 disabled:text-gray-400 text-white font-medium py-2.5 px-4 rounded-lg transition-colors text-sm"
         >
-          {loading ? "Planning sequence…" : "Generate message sequence →"}
+          {loading ? "Working…" : "Generate message sequence →"}
         </button>
       </form>
     </div>

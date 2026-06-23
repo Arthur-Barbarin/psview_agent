@@ -34,16 +34,6 @@ export interface Message {
   intent: string;
 }
 
-export interface Plan {
-  reasoning: string;
-  strategy: {
-    touchpoints: number;
-    arc: string;
-    angle: string;
-  };
-  messages: Message[];
-}
-
 export interface ConversationMessage {
   role: "agent" | "candidate";
   content: string;
@@ -53,4 +43,35 @@ export interface ReplyResult {
   reasoning: string;
   signal: "interested" | "neutral" | "hesitant" | "declined";
   response: string;
+}
+
+export interface FitCheck {
+  shouldReach: boolean;
+  score: number; // 1-10
+  reasoning: string;
+  concerns: string[];
+}
+
+export interface Plan {
+  fitCheck: FitCheck;
+  reasoning: string;
+  strategy: {
+    touchpoints: number;
+    arc: string;
+    angle: string;
+  };
+  messages: Message[];
+}
+
+export interface CritiqueViolation {
+  messageStep: number;
+  rule: string;
+  originalOpener?: string;
+}
+
+export interface CritiqueResult {
+  passed: boolean;
+  violations: CritiqueViolation[];
+  reasoning: string;
+  messages: Message[]; // auto-fixed messages
 }

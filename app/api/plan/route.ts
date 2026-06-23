@@ -29,6 +29,12 @@ Your task: Autonomously plan and generate a complete outreach sequence for this 
 
 Return a JSON object with this exact structure:
 {
+  "fitCheck": {
+    "shouldReach": true or false,
+    "score": 1-10,
+    "reasoning": "Does this candidate's background actually match what the company hires? Be honest — a mismatch is a mismatch.",
+    "concerns": ["any specific gaps between candidate profile and company hiring criteria"]
+  },
   "reasoning": "Your full strategic thinking: why this candidate, what angle to take, how many messages and why, what progression makes sense, what to emphasize given their background, what objections to anticipate",
   "strategy": {
     "touchpoints": 3,
@@ -45,6 +51,8 @@ Return a JSON object with this exact structure:
     }
   ]
 }
+
+If fitCheck.score is below 4, set shouldReach to false and still generate messages (the user may override) but note the concerns clearly.
 
 STRICT RULES — every message must follow all of these without exception:
 

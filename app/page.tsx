@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { AgentConfig, Candidate, Company, Plan } from "./types";
+import { AgentConfig, Candidate, Company, CritiqueResult, Plan } from "./types";
 import CompanyForm from "./components/CompanyForm";
 import AgentConfigView from "./components/AgentConfigView";
 import ConversationSim from "./components/ConversationSim";
@@ -16,6 +16,7 @@ export default function Home() {
   const [candidate, setCandidate] = usePersistedState<Candidate | null>("psv_candidate", null);
   const [intent, setIntent] = usePersistedState<string>("psv_intent", "");
   const [plan, setPlan] = usePersistedState<Plan | null>("psv_plan", null);
+  const [critique, setCritique] = usePersistedState<CritiqueResult | null>("psv_critique", null);
   const [loading, setLoading] = useState(false);
   const [restored, setRestored] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
@@ -41,17 +42,18 @@ export default function Home() {
       if (config.error) throw new Error(config.error);
       setAgentConfig(config as AgentConfig);
       setStep(2);
-    } catch (e) {
+    } catch {
       setApiError("Failed to configure agent. Check your API key or try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handlePlan = (cand: Candidate, intentStr: string, p: Plan) => {
+  const handlePlan = (cand: Candidate, intentStr: string, p: Plan, c: CritiqueResult) => {
     setCandidate(cand);
     setIntent(intentStr);
     setPlan(p);
+    setCritique(c);
     setStep(3);
   };
 
@@ -62,11 +64,11 @@ export default function Home() {
     setCandidate(null);
     setIntent("");
     setPlan(null);
+    setCritique(null);
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-2xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -81,8 +83,7 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Main */}
-      <main className="max-w-2xl mx-auto px-6 py-10">
+      <main className="max-w-2xl mx-auto px-6 py-10 pb-16">
         {restored && (
           <div className="mb-6 bg-green-50 border border-green-200 rounded-lg px-4 py-3 flex items-center gap-3">
             <span className="text-green-600">↺</span>
@@ -111,6 +112,7 @@ export default function Home() {
           <ConversationSim
             plan={plan}
             setPlan={setPlan}
+            critique={critique}
             config={agentConfig}
             company={company}
             candidate={candidate}
@@ -119,15 +121,11 @@ export default function Home() {
         )}
       </main>
 
-      {/* Footer */}
       <footer className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-6 py-2.5">
         <p className="text-center text-xs text-gray-400">
           No messages are sent. This is a simulation environment.
           {step > 1 && (
-            <button
-              onClick={handleReset}
-              className="ml-3 text-violet-500 hover:text-violet-700 font-medium"
-            >
+            <button onClick={handleReset} className="ml-3 text-violet-500 hover:text-violet-700 font-medium">
               Start over
             </button>
           )}
