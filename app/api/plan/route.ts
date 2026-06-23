@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 export async function POST(req: NextRequest) {
+  try {
   const { company, personality, candidate, intent } = await req.json();
 
   const prompt = `You are an autonomous recruiting agent with the following personality:
@@ -45,7 +46,11 @@ Return a JSON object with this exact structure:
   ]
 }
 
-Write messages in the agent's authentic voice — specific to this candidate, not generic copy. Reference real details from their background and the company context.`;
+STRICT RULES — every message must follow these or it fails:
+1. PERSONALITY CHECK: Before finalising each message, verify it against the agent's "avoids" list. If any message violates even one item in "avoids", rewrite it until it doesn't. The personality is non-negotiable.
+2. NO GENERIC OPENERS: Never start a follow-up with "following up on my previous message", "I wanted to follow up", or any variant. Each message must open on a new, specific angle — a new piece of information, a question, a relevant observation.
+3. CONCRETE CTA: Every message must end with ONE specific call to action. Not "let's connect" or "I'd love to chat". Give a concrete timeframe: "Free for a 20-min call Thursday or Friday?", "Would next week work for a quick call?", or similar. Make it easy to say yes.
+4. SPECIFICITY: Every message must reference at least one real detail from the candidate's background or the company context. No sentence should be copy-pasteable to a different candidate.`;
 
   const completion = await groq.chat.completions.create({
     model: "llama-3.3-70b-versatile",
@@ -57,4 +62,8 @@ Write messages in the agent's authentic voice — specific to this candidate, no
 
   const result = JSON.parse(completion.choices[0].message.content || "{}");
   return NextResponse.json(result);
+  } catch (e) {
+    console.error("[/api/plan]", e);
+    return NextResponse.json({ error: String(e) }, { status: 500 });
+  }
 }

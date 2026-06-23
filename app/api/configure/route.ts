@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 export async function POST(req: NextRequest) {
+  try {
   const { company } = await req.json();
 
   const prompt = `You are an AI agent that configures itself to represent a company in recruiting conversations.
@@ -41,4 +42,8 @@ Think carefully. The personality must be specific to this company, not generic. 
 
   const result = JSON.parse(completion.choices[0].message.content || "{}");
   return NextResponse.json(result);
+  } catch (e) {
+    console.error("[/api/configure]", e);
+    return NextResponse.json({ error: String(e) }, { status: 500 });
+  }
 }

@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 export async function POST(req: NextRequest) {
+  try {
   const { company, personality, candidate, intent, conversation, signal, remainingMessages } = await req.json();
 
   const prompt = `You are an autonomous recruiting agent mid-conversation. You just read a candidate's reply and detected a signal.
@@ -24,10 +25,16 @@ REMAINING PLANNED MESSAGES (before this reply):
 ${JSON.stringify(remainingMessages, null, 2)}
 
 Based on the signal, decide autonomously whether to revise the remaining messages.
-- "interested": compress or accelerate — skip soft nurture, move toward a concrete next step
-- "hesitant": pivot the angle, address the real concern, don't just repeat the same pitch
-- "declined": one final graceful message, then stop. Don't push.
-- "neutral": minor adjustments only if needed
+- "interested": compress or accelerate — cut soft nurture messages, move straight to a concrete next step (schedule a call, intro to the team). Max 1-2 messages.
+- "hesitant": pivot the angle entirely. Address the specific concern raised. Do not repeat the original pitch. If they raised relocation, address relocation. If they raised compensation, address that.
+- "declined": produce exactly ONE graceful closing message. Do not pitch again. Respect their decision, leave the door open briefly, stop. Never send 2+ messages after a declined signal.
+- "neutral": minor adjustments only — sharpen the next message angle based on what you now know.
+
+STRICT RULES for revised messages — same as the original plan:
+1. No generic openers like "following up on my previous message" — open on a new angle.
+2. Every message ends with ONE concrete CTA with a specific timeframe.
+3. Each message must pass the personality "avoids" check — rewrite any that violate it.
+4. Specificity: reference the conversation that just happened, not generic copy.
 
 Return a JSON object:
 {
@@ -36,7 +43,7 @@ Return a JSON object:
   "messages": [ updated array of remaining messages with same structure as before ]
 }
 
-If the signal is strong enough to change the plan, rewrite the remaining messages entirely. Be decisive.`;
+Be decisive. When in doubt, fewer messages is better than more.`;
 
   const completion = await groq.chat.completions.create({
     model: "llama-3.3-70b-versatile",
@@ -48,4 +55,8 @@ If the signal is strong enough to change the plan, rewrite the remaining message
 
   const result = JSON.parse(completion.choices[0].message.content || "{}");
   return NextResponse.json(result);
+  } catch (e) {
+    console.error("[/api/adapt]", e);
+    return NextResponse.json({ error: String(e) }, { status: 500 });
+  }
 }
