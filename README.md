@@ -51,7 +51,7 @@ Each stage is a separate API call with its own prompt. The personality model is 
 
 ## What makes it intelligent and not just an LLM call
 
-> The agent derives its own persistent personality model from company context, then plans a complete engagement strategy before generating a single message — rather than receiving a pre-written prompt and filling in the blanks.
+> After every candidate reply, the agent classifies a signal, then rewrites its own remaining outreach plan based on that signal — closing the loop between observation and action. The personality model, the strategy, and the message sequence are all derived autonomously; none are hardcoded or templated.
 
 ---
 

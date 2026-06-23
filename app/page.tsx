@@ -18,6 +18,7 @@ export default function Home() {
   const [plan, setPlan] = usePersistedState<Plan | null>("psv_plan", null);
   const [loading, setLoading] = useState(false);
   const [restored, setRestored] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   useEffect(() => {
     if (step > 1) setRestored(true);
@@ -28,6 +29,7 @@ export default function Home() {
 
   const handleCompanySubmit = async (co: Company) => {
     setLoading(true);
+    setApiError(null);
     setCompany(co);
     try {
       const res = await fetch("/api/configure", {
@@ -35,9 +37,12 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ company: co }),
       });
-      const config: AgentConfig = await res.json();
-      setAgentConfig(config);
+      const config = await res.json();
+      if (config.error) throw new Error(config.error);
+      setAgentConfig(config as AgentConfig);
       setStep(2);
+    } catch (e) {
+      setApiError("Failed to configure agent. Check your API key or try again.");
     } finally {
       setLoading(false);
     }
@@ -82,6 +87,12 @@ export default function Home() {
           <div className="mb-6 bg-green-50 border border-green-200 rounded-lg px-4 py-3 flex items-center gap-3">
             <span className="text-green-600">↺</span>
             <p className="text-sm text-green-700 font-medium">Session restored — your previous context is still here.</p>
+          </div>
+        )}
+
+        {apiError && (
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+            <p className="text-sm text-red-700 font-medium">{apiError}</p>
           </div>
         )}
 

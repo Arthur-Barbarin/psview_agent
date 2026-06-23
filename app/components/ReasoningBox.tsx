@@ -2,7 +2,7 @@
 import { useState } from "react";
 
 export default function ReasoningBox({ reasoning }: { reasoning: string }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   return (
     <div className="border border-violet-200 bg-violet-50 rounded-lg overflow-hidden">
       <button

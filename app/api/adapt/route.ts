@@ -46,7 +46,7 @@ Return a JSON object:
 Be decisive. When in doubt, fewer messages is better than more.`;
 
   const completion = await groq.chat.completions.create({
-    model: "llama-3.1-8b-instant",
+    model: "llama-3.3-70b-versatile",
     messages: [{ role: "user", content: prompt }],
     response_format: { type: "json_object" },
     temperature: 0.7,
