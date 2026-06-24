@@ -18,11 +18,12 @@ export default function Home() {
   const [plan, setPlan] = usePersistedState<Plan | null>("psv_plan", null);
   const [critique, setCritique] = usePersistedState<CritiqueResult | null>("psv_critique", null);
   const [loading, setLoading] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [restored, setRestored] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
     if (step > 1) setRestored(true);
     const t = setTimeout(() => setRestored(false), 3000);
     return () => clearTimeout(t);
@@ -110,11 +111,12 @@ export default function Home() {
           </div>
         )}
 
-        {step === 1 && <CompanyForm onSubmit={handleCompanySubmit} />}
-        {step === 2 && agentConfig && company && (
+        {/* Defer step rendering until mounted — avoids localStorage hydration mismatch */}
+        {!mounted ? null : step === 1 ? (
+          <CompanyForm onSubmit={handleCompanySubmit} />
+        ) : step === 2 && agentConfig && company ? (
           <AgentConfigView config={agentConfig} company={company} onPlan={handlePlan} />
-        )}
-        {step === 3 && plan && agentConfig && company && candidate && (
+        ) : step === 3 && plan && agentConfig && company && candidate ? (
           <ConversationSim
             plan={plan}
             setPlan={setPlan}
@@ -125,13 +127,13 @@ export default function Home() {
             candidate={candidate}
             intent={intent}
           />
-        )}
+        ) : null}
       </main>
 
       <footer className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-6 py-2.5">
         <p className="text-center text-xs text-gray-400">
           No messages are sent. This is a simulation environment.
-          {step > 1 && (
+          {mounted && step > 1 && (
             <button onClick={handleReset} className="ml-3 text-violet-500 hover:text-violet-700 font-medium">
               Start over
             </button>
