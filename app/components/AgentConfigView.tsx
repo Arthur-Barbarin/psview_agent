@@ -170,13 +170,19 @@ export default function AgentConfigView({
               <div className="space-y-1.5">
                 {pending.plan.research.map((r, i) =>
                   r.skipped ? (
-                    <p key={i} className="text-xs text-gray-500 italic">Agent chose not to search — {r.reasoning}</p>
+                    <p key={i} className="text-xs text-gray-500 italic">Agent chose not to search further — {r.reasoning}</p>
                   ) : (
                     <div key={i} className="text-xs text-gray-600">
                       <p className="text-gray-500">🔎 <span className="font-mono">&quot;{r.query}&quot;</span></p>
+                      {r.answer && (
+                        <p className="ml-5 mt-0.5 text-gray-600 leading-snug">{r.answer.slice(0, 220)}{r.answer.length > 220 ? "…" : ""}</p>
+                      )}
                       {r.results.slice(0, 2).map((s, j) => (
                         <a key={j} href={s.url} target="_blank" rel="noopener noreferrer" className="block ml-5 text-violet-600 hover:underline truncate">· {s.title}</a>
                       ))}
+                      {!r.answer && r.results.length === 0 && (
+                        <p className="ml-5 text-gray-400 italic">(no useful sources surfaced — low-quality results filtered out)</p>
+                      )}
                     </div>
                   )
                 )}
