@@ -152,6 +152,54 @@ export default function ConversationSim({
         </div>
       )}
 
+      {/* Research trace — proof the agent picked its own research path */}
+      {plan.research && plan.research.length > 0 && (
+        <div className="bg-slate-900 rounded-lg p-4 space-y-3 font-mono text-xs">
+          <div className="flex items-center gap-2 text-slate-400 pb-2 border-b border-slate-700">
+            <span>🔎</span>
+            <span>agent.research(candidate)</span>
+            <span className="ml-auto text-slate-500">{plan.research.length} call{plan.research.length > 1 ? "s" : ""}</span>
+          </div>
+          {plan.research.map((r, i) => (
+            <div key={i} className="space-y-1">
+              {r.skipped ? (
+                <div>
+                  <div className="text-slate-200">
+                    <span className="text-slate-500 select-none">{String(i + 1).padStart(2, "0")}.</span>
+                    {" "}<span className="text-amber-300 font-semibold">no_research_needed</span>
+                  </div>
+                  <p className="text-slate-400 pl-7 leading-relaxed">{r.reasoning}</p>
+                </div>
+              ) : (
+                <div>
+                  <div className="text-slate-200">
+                    <span className="text-slate-500 select-none">{String(i + 1).padStart(2, "0")}.</span>
+                    {" "}<span className="text-violet-300 font-semibold">research_candidate</span>
+                    {" "}<span className="text-slate-400">&quot;{r.query}&quot;</span>
+                  </div>
+                  {r.reasoning && <p className="text-slate-500 pl-7 leading-relaxed italic">{r.reasoning}</p>}
+                  {r.answer && (
+                    <p className="text-slate-300 pl-7 leading-relaxed mt-1">
+                      <span className="text-emerald-400">→</span> {r.answer.slice(0, 280)}{r.answer.length > 280 ? "…" : ""}
+                    </p>
+                  )}
+                  {r.results.length > 0 && (
+                    <ul className="pl-7 mt-1 space-y-0.5">
+                      {r.results.slice(0, 3).map((s, j) => (
+                        <li key={j} className="text-slate-400 truncate">
+                          <span className="text-slate-600">·</span>{" "}
+                          <a href={s.url} target="_blank" rel="noopener noreferrer" className="text-violet-200 hover:underline">{s.title}</a>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Critique result */}
       {critique && (
         <div className={`rounded-lg border px-4 py-3 flex items-start gap-2 ${critique.passed ? "bg-green-50 border-green-200" : "bg-blue-50 border-blue-200"}`}>

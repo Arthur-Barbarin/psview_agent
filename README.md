@@ -14,7 +14,7 @@ Three connected stages in a single-page flow:
 Captures name, description, culture, hiring profiles, and tone. A specific input produces a specific agent — a Mistral AI recruiter sounds nothing like a McKinsey recruiter.
 
 **2. Agent configuration & planning**
-The agent derives its own personality model (voice principles, values, things it never does, opening/closing style). Then it runs a fit check on the candidate, generates a complete outreach sequence, and runs a self-critique pass against its own avoids list — auto-fixing any violations before the messages are shown.
+The agent derives its own personality model (voice principles, values, things it never does, opening/closing style). Then — if you toggle on candidate research — it gets a second toolbox (`research_candidate`, `no_research_needed`) and decides on its own whether to search the public web (Tavily) before writing. Search results ground the opener in something specific and verifiable. After the messages are generated, a self-critique pass reads them against the personality's avoids list and auto-fixes any violations before they're shown.
 
 **3. Conversation simulator with an agentic loop**
 When a candidate replies, the agent doesn't follow a script. It receives a toolbox and decides — turn by turn, via Groq's native tool calling — which tools to invoke and in what order:
@@ -38,7 +38,14 @@ Company context
 PersonalityDeriver          → Personality model
       │
       ▼
-FitCheck + StrategyPlanner  → Score + outreach sequence
+Agentic research loop (opt-in)  → Model picks search tools
+   ┌──────────────────────────────────────────┐
+   │ research_candidate (up to 2x) ─→ Tavily  │
+   │ no_research_needed                       │
+   └──────────────────────────────────────────┘
+      │
+      ▼
+FitCheck + StrategyPlanner  → Score + outreach sequence (grounded in findings)
       │
       ▼
 Critique pass               → Reads messages, auto-fixes violations
@@ -57,7 +64,7 @@ Agentic conversation loop  → Model picks tools each turn
    └──────────────────────────────────────────┘
 ```
 
-Five capabilities; one model deciding which to use; the trace shown to the user.
+Seven capabilities across two agentic loops; one model deciding which to use; both traces shown to the user.
 
 ---
 
@@ -74,7 +81,7 @@ Five capabilities; one model deciding which to use; the trace shown to the user.
 
 ## What makes it intelligent and not just an LLM call
 
-> Given a candidate reply, the agent decides — turn by turn, via native tool calling — which capabilities to invoke: classify the signal, compose a response, revise the future plan, close the thread, or flag a concern. The orchestration is the model's, not the code's. Before that, a separate critique pass reads the planner's output against the personality's avoids list and auto-fixes violations. The tool trace is shown in the UI as it happens.
+> Two agentic loops, both real. Before planning, the model decides whether (and what) to search the web for to ground the opener. During the conversation, the model decides — turn by turn — which capabilities to invoke: classify the signal, compose a response, revise the future plan, close the thread, or flag a concern. The orchestration is the model's, not the code's. A separate critique pass enforces the personality's avoids list on every generated message. Every tool call is shown in the UI as it happens.
 
 ---
 
@@ -85,11 +92,13 @@ git clone https://github.com/your-handle/psview-agent
 cd psview-app
 npm install
 cp .env.example .env.local
-# add your GROQ_API_KEY (free at console.groq.com)
+# Required: GROQ_API_KEY (free at console.groq.com)
+# Optional: TAVILY_API_KEY (free at tavily.com) — enables research_candidate
 npm run dev
 ```
 
 Get a free Groq API key at [console.groq.com](https://console.groq.com).
+Get a free Tavily key at [tavily.com](https://tavily.com) to enable the `research_candidate` tool. Without it, the toggle is silently a no-op and the agent plans without research.
 
 ---
 

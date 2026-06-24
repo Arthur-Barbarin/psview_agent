@@ -78,6 +78,21 @@ export interface FitCheck {
   concerns: string[];
 }
 
+export interface ResearchResultSnippet {
+  title: string;
+  url: string;
+  content: string;
+  score?: number;
+}
+
+export interface ResearchTrace {
+  query: string;
+  reasoning: string;
+  answer: string | null;
+  results: ResearchResultSnippet[];
+  skipped?: boolean;
+}
+
 export interface Plan {
   fitCheck: FitCheck;
   reasoning: string;
@@ -87,6 +102,8 @@ export interface Plan {
     angle: string;
   };
   messages: Message[];
+  research?: ResearchTrace[];
+  researchEnabled?: boolean;
 }
 
 export interface CritiqueViolation {

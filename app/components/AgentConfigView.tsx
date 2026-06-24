@@ -21,6 +21,7 @@ export default function AgentConfigView({
   const [loadingStage, setLoadingStage] = useState("");
   const [critiqueWarning, setCritiqueWarning] = useState(false);
   const [pending, setPending] = useState<PendingPlan | null>(null);
+  const [enableResearch, setEnableResearch] = useState(true);
 
   const set = (k: keyof Candidate) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setCandidate((c) => ({ ...c, [k]: e.target.value }));
@@ -38,11 +39,11 @@ export default function AgentConfigView({
 
     try {
       // Step 1: Plan
-      setLoadingStage("Planning outreach sequence…");
+      setLoadingStage(enableResearch ? "Researching candidate, then planning…" : "Planning outreach sequence…");
       const res = await fetch("/api/plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ company, personality, candidate, intent }),
+        body: JSON.stringify({ company, personality, candidate, intent, enableResearch }),
         signal: controller.signal,
       });
       const plan: Plan = await res.json();
@@ -202,6 +203,21 @@ export default function AgentConfigView({
           <p className="text-xs text-gray-400 mb-1.5">What is the agent trying to accomplish?</p>
           <input className="input" placeholder="e.g. Recruit for a senior ML engineer role focused on inference optimization" value={intent} onChange={(e) => setIntent(e.target.value)} required />
         </div>
+
+        <label className={`flex items-start gap-3 rounded-lg border px-4 py-3 cursor-pointer transition-colors ${enableResearch ? "border-violet-300 bg-violet-50" : "border-gray-200 bg-white hover:border-gray-300"}`}>
+          <input
+            type="checkbox"
+            className="mt-0.5 h-4 w-4 accent-violet-600"
+            checked={enableResearch}
+            onChange={(e) => setEnableResearch(e.target.checked)}
+          />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-gray-900">Let the agent research this candidate</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Agent decides whether to search the web for public info (papers, talks, OSS) before writing. Adds 3–6s. Requires <code className="px-1 bg-white border border-gray-200 rounded">TAVILY_API_KEY</code>.
+            </p>
+          </div>
+        </label>
 
         {loading && (
           <div className="flex items-center gap-3 bg-violet-50 border border-violet-200 rounded-lg px-4 py-3">

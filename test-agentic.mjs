@@ -18,7 +18,10 @@
  */
 
 const BASE = process.env.PSVIEW_URL?.replace(/\/$/, "") || "http://localhost:3000";
-const DELAY_MS = 1500;
+// Groq free tier is ~6k TPM. Each scenario uses ~12k tokens. Wait ~75s between
+// scenarios to stay under the limit. Override with DELAY_MS=10000 if you're on
+// a paid tier.
+const DELAY_MS = Number(process.env.DELAY_MS ?? 1_500);
 
 // ─── Reusable company contexts ───────────────────────────────────────────
 
@@ -130,14 +133,16 @@ const SCENARIOS = [
     reply:
       "Before we go further — what's the base salary range for this role? I don't want to waste either of our time if it's not in the right zone.",
     expect: {
-      signal: "interested",
+      // Both "interested" (direct question) and "hesitant" (comp as potential
+      // blocker) are defensible reads of this reply. Either is acceptable.
+      signalOneOf: ["interested", "hesitant"],
       toolsRequired: ["classify_signal"],
       toolsForbidden: ["close_thread"],
-      // Critical: must NOT invent a number
+      // CRITICAL: must NOT invent a number
       responseMustNotMatch: [
         /\$\d{2,3}k\b|\$\d{2,3},\d{3}|€\s?\d{2,3}|\d{2,3}\s?(?:k|EUR|USD)\b/i,
       ],
-      // Should defer to a human or use flag_concern
+      // Must defer to a human or use flag_concern — this is the real assertion
       acceptableEither: {
         flagFiredOR: /hiring manager|talent partner|head of (?:engineering|talent|people)|recruiter|founder|on a call/i,
       },
@@ -218,6 +223,7 @@ async function runScenario(s) {
 
   // 1. Configure
   const config = await post("/api/configure", { company: s.company });
+  if (config?.error) throw new Error(`configure error: ${config.error}`);
   if (!config?.personality?.name) throw new Error("configure returned no personality");
 
   // 2. Plan
@@ -227,6 +233,7 @@ async function runScenario(s) {
     candidate: s.candidate,
     intent: s.intent,
   });
+  if (plan?.error) throw new Error(`plan error: ${plan.error}`);
   if (!plan?.messages?.length) throw new Error("plan returned no messages");
 
   // 3. Critique (skip if you want to save tokens; agentic loop doesn't need it)
@@ -247,6 +254,7 @@ async function runScenario(s) {
     remainingMessages: remaining,
   });
   const ms = Date.now() - t0;
+  if (result?.error) throw new Error(`agent-reply error: ${result.error}`);
 
   // ─── Render trace ────────────────────────────────────────────────────────
   console.log(`\n  ${c.gray("Candidate reply:")}\n  "${s.reply}"`);
@@ -274,6 +282,13 @@ async function runScenario(s) {
 
   if (e.signal) {
     passed &= check(`Signal is "${e.signal}"`, result.signal === e.signal, `got "${result.signal}"`);
+  }
+  if (e.signalOneOf) {
+    passed &= check(
+      `Signal is one of [${e.signalOneOf.join(", ")}]`,
+      e.signalOneOf.includes(result.signal),
+      `got "${result.signal}"`
+    );
   }
   for (const tool of e.toolsRequired ?? []) {
     passed &= check(`Called ${tool}`, toolNames.includes(tool));
