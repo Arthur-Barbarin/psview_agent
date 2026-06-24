@@ -71,15 +71,6 @@ Two agentic loops; one model deciding which tool fires; both traces visible in t
 
 ---
 
-## Roadmap
-
-- **`research_company` tool** — extend autonomous research to the company side, so thin context inputs still produce grounded openers.
-- **Critic loop on every conversation turn** — symmetric to the plan-time critique; tightens runtime self-correction.
-- **Cross-session personality reuse** — persist derived personalities so a hiring intent reuses one agent across many candidates.
-- **Streaming tool traces** — render each tool call as it lands rather than after the loop completes; makes autonomy feel live.
-
----
-
 ## Tests
 
 Three Node harnesses in the repo (`test-agentic.mjs`, `test-research.mjs`, `test-adversarial.mjs`) cover happy-path, research, and adversarial cases — including prompt extraction attempts, multi-turn consistency, cross-personality leak, wrong-fit detection, and foreign-language adaptation. All passing on the live deployment.
