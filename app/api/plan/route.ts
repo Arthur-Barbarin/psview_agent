@@ -248,8 +248,8 @@ Return a JSON object with this exact structure:
   "fitCheck": {
     "shouldReach": true or false,
     "score": 1-10,
-    "reasoning": "Does this candidate's background actually match what the company hires? Be honest — a mismatch is a mismatch.",
-    "concerns": ["any specific gaps between candidate profile and company hiring criteria"]
+    "reasoning": "Critically assess whether this candidate ACTUALLY matches what the company hires. Be skeptical. Apply these rules: (1) A founder or consultant running their own practice is NOT equivalent to a senior in-house IC engineer — penalize 2-3 points for this gap. (2) A 7+ score requires strong direct-experience match on BOTH domain AND seniority level. (3) Adjacent field ≠ direct experience: aerospace systems ≠ eVTOL-specific systems engineering. (4) 6 = stretch hire with meaningful gaps. 5 or below = shouldReach false. A generous score helps nobody.",
+    "concerns": ["specific gap between candidate profile and company hiring criteria — be concrete, not vague"]
   },
   "reasoning": "Your full strategic thinking: why this candidate, what angle to take, how many messages and why, what progression makes sense, what to emphasize given their background, what objections to anticipate",
   "strategy": {
@@ -274,7 +274,13 @@ STRICT RULES — every message must follow all of these without exception:
 
 1. PERSONALITY CHECK: After writing each message, check it against the agent's "avoids" list word by word. If it violates any item, rewrite the entire message.
 
-2. BANNED OPENERS — completely forbidden:
+2. REALISTIC SEQUENCE ARC — this is outbound cold recruiting, not a post-call summary:
+   - Message 1 = cold opener. No prior contact has occurred. Candidate has not replied. No call has happened.
+   - Message 2 = follow-up assuming Message 1 was SENT but received NO REPLY. The candidate has not responded yet. Write with a completely NEW angle — a different hook, a specific challenge you're facing, a time-sensitive context. NEVER: "As we discussed", "following up on our call", "as I mentioned", "I wanted to provide more info on what we talked about". None of these. A call has NOT happened.
+   - Message 3 (if any) = graceful close. Acknowledge they may not be interested now, leave the door open for later.
+   - The arc must reflect REALISTIC cold outreach timing: Message 1 sent → no reply → Message 2 (new angle, ~1 week later) → no reply → Message 3 (close).
+
+3. BANNED OPENERS — completely forbidden:
    - "I wanted to follow up"
    - "Following up on my previous message"
    - "I hope you've had a chance"
@@ -283,9 +289,9 @@ STRICT RULES — every message must follow all of these without exception:
    - "I hope this message finds you"
    Instead: open on a specific angle — reference research findings, a specific data point, or something concrete about their work.
 
-3. CONCRETE CTA: Every message ends with ONE specific CTA with a real timeframe. Forbidden: "let's connect", "I'd love to chat", "feel free to reach out".
+4. CONCRETE CTA: Every message ends with ONE specific CTA with a real timeframe. Forbidden: "let's connect", "I'd love to chat", "feel free to reach out".
 
-4. SPECIFICITY: Every sentence that could apply to any other candidate must be rewritten. Reference actual details from research or background. Nothing generic.`;
+5. SPECIFICITY: Every sentence that could apply to any other candidate must be rewritten. Reference actual details from research or background. Nothing generic.`;
 
     const completion = await groq.chat.completions.create({
       model: "llama-3.3-70b-versatile",
