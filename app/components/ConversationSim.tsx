@@ -127,7 +127,7 @@ export default function ConversationSim({
       <div>
         <h2 className="text-lg font-semibold text-gray-900">Conversation simulator</h2>
         <p className="text-sm text-gray-500 mt-0.5">
-          No real messages sent. The agent picks its own tools — watch the trace.
+          Pick a message, type any candidate reply, and watch the agent reason in real time.
         </p>
       </div>
 

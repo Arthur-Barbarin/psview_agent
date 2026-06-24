@@ -134,7 +134,7 @@ export default function Home() {
 
       <footer className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-6 py-2.5">
         <p className="text-center text-xs text-gray-400">
-          No messages are sent. This is a simulation environment.
+          Built for the PSVIEW founding engineer test by Arthur Barbarin.
           {mounted && step > 1 && (
             <button onClick={handleReset} className="ml-3 text-violet-500 hover:text-violet-700 font-medium">
               Start over
