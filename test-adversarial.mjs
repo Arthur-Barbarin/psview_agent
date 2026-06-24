@@ -290,11 +290,25 @@ async function s8_frenchReply() {
   console.log(`\n  ${c.gray("Response:")} "${r.response?.slice(0, 320)}${(r.response?.length ?? 0) > 320 ? "…" : ""}"`);
   console.log(`  ${c.gray("Signal:")} ${r.signal}`);
 
+  // Detect French via common stop-words AND/OR diacritics. Either signal is
+  // sufficient; needing both would be too strict on short replies.
+  const text = r.response || "";
+  const frenchWords = /\b(bonjour|merci|votre|vous|nous|notre|nos|sommes|équipe|société|française|cher|chère|cordialement|sincèrement|enchanté|enchantée|ravie?|disponible|aimerais|voudrais|pourrions|pourriez|aurez|aurai)\b/i;
+  const diacritics = /[àâäéèêëîïôöùûüçÉÈÊÀÂÄÎÔÙÇŒœ]/;
+  const englishMarkers = /\b(would you|I'd love|happy to|looking forward|please let me know|reach out|next week|tomorrow|this week|appreciate|thank you for|kindly)\b/i;
+  const matchesFrench = frenchWords.test(text) || (text.match(diacritics)?.length ?? 0) >= 2;
+  const matchesEnglish = englishMarkers.test(text);
+
   let ok = true;
-  // Agent should either match French OR stay in English consistently — both acceptable.
-  // What MUST happen: signal is interested, not declined.
   ok &= check("Signal is interested or neutral (not declined)", r.signal === "interested" || r.signal === "neutral");
-  ok &= check("Response is non-empty and longer than 50 chars", (r.response?.length ?? 0) > 50);
+  ok &= check("Response is non-empty and longer than 50 chars", text.length > 50);
+  ok &= check(
+    "Response is written in French (matches candidate's language)",
+    matchesFrench && !matchesEnglish,
+    matchesFrench && matchesEnglish ? "mixed French + English" :
+      matchesEnglish ? "responded in English" :
+      "no French markers detected"
+  );
   return { label: "Foreign-language adaptation", passed: !!ok };
 }
 
