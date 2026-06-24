@@ -244,24 +244,41 @@ export default function ConversationSim({
 
       {/* Stacked messages */}
       <div className="space-y-3">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Message sequence</p>
+        <div className="flex items-baseline justify-between gap-3">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Message sequence</p>
+          <p className="text-xs text-gray-500 text-right">Sent over ~2 weeks. Each step only fires if the previous one got no reply.</p>
+        </div>
         {plan.messages.map((msg, i) => {
           const isActive = activeMessageIndex === i;
           const isRevised = planRevised && i > (activeMessageIndex ?? -1);
+          const isLast = i === plan.messages.length - 1;
+          const timing =
+            i === 0
+              ? { day: "Day 0", label: "Cold opener", desc: "Initial outreach" }
+              : isLast
+              ? { day: `Day ${i * 5 + 2}`, label: "Soft close", desc: "Final touchpoint if still no reply" }
+              : { day: `Day ${i * 5}`, label: "Silence follow-up", desc: "Sent if previous message got no reply" };
           return (
             <div
               key={i}
               className={`rounded-lg border overflow-hidden transition-all ${isActive ? "border-violet-400 shadow-sm" : isRevised ? "border-amber-300" : "border-gray-200"}`}
             >
-              <div className={`px-4 py-2.5 flex items-center justify-between ${isActive ? "bg-violet-50" : isRevised ? "bg-amber-50" : "bg-gray-50"}`}>
-                <div className="flex items-center gap-2">
+              <div className={`px-4 py-3 ${isActive ? "bg-violet-50" : isRevised ? "bg-amber-50" : "bg-gray-50"}`}>
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <span className={`text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${isActive ? "bg-violet-200 text-violet-800" : "bg-gray-200 text-gray-600"}`}>
-                    {msg.channel} {i + 1}
+                    {msg.channel} #{i + 1}
                   </span>
+                  <span className="text-xs font-mono text-gray-500">{timing.day}</span>
+                  <span className="text-xs font-semibold text-gray-700">· {timing.label}</span>
                   {isRevised && <span className="text-xs text-amber-600 font-medium">↻ revised</span>}
-                  {msg.subject && <span className="text-xs text-gray-500 truncate max-w-[200px]">{msg.subject}</span>}
                 </div>
-                <span className="text-xs text-gray-400 italic hidden sm:block">{msg.intent}</span>
+                <p className="text-xs text-gray-500 leading-relaxed">{timing.desc}{msg.intent ? <> — <span className="italic">{msg.intent}</span></> : null}</p>
+                {msg.subject && (
+                  <p className="mt-1.5 text-xs text-gray-600">
+                    <span className="text-gray-400">Subject: </span>
+                    <span className="font-medium">{msg.subject}</span>
+                  </p>
+                )}
               </div>
               <div className="p-4">
                 <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{msg.body}</p>
