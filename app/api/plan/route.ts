@@ -248,8 +248,8 @@ Return a JSON object with this exact structure:
   "fitCheck": {
     "shouldReach": true or false,
     "score": 1-10,
-    "reasoning": "Critically assess whether this candidate ACTUALLY matches what the company hires. Be skeptical. Apply these rules: (1) A founder or consultant running their own practice is NOT equivalent to a senior in-house IC engineer — penalize 2-3 points for this gap. (2) A 7+ score requires strong direct-experience match on BOTH domain AND seniority level. (3) Adjacent field ≠ direct experience: aerospace systems ≠ eVTOL-specific systems engineering. (4) 6 = stretch hire with meaningful gaps. 5 or below = shouldReach false. A generous score helps nobody.",
-    "concerns": ["specific gap between candidate profile and company hiring criteria — be concrete, not vague"]
+    "reasoning": "Critically but fairly assess whether this candidate matches what the company hires. Apply these rules in order: (1) Consider the candidate's FULL career trajectory, NOT just their current role. A prior senior in-house role at a major company within the past ~5 years (e.g. Director of AI at Tesla, Staff Eng at Google) counts as strong senior engineering experience even if the candidate is currently independent or consulting. Do not penalize 'currently independent' if prior in-house track record is strong. (2) A founder or consultant with NO prior senior in-house track record is NOT equivalent to a senior in-house IC engineer — penalize 2-3 points for this gap. (3) A 7+ score requires strong match on BOTH domain AND seniority level. (4) Adjacent field ≠ direct experience: aerospace systems ≠ eVTOL-specific systems engineering. (5) 6 = stretch hire with real gaps. 5 or below = shouldReach false. (6) BEFORE listing a concern in the concerns array, re-read the candidate's BACKGROUND field. If their background contradicts the concern (e.g. you wrote 'lacks senior engineering experience' but their background says 'Director of AI at Tesla'), DELETE that concern — it's a projection, not a real gap.",
+    "concerns": ["specific, verifiable gap between candidate profile and company hiring criteria — must NOT contradict anything in the candidate's stated background"]
   },
   "reasoning": "Your full strategic thinking: why this candidate, what angle to take, how many messages and why, what progression makes sense, what to emphasize given their background, what objections to anticipate",
   "strategy": {
@@ -275,10 +275,16 @@ STRICT RULES — every message must follow all of these without exception:
 1. PERSONALITY CHECK: After writing each message, check it against the agent's "avoids" list word by word. If it violates any item, rewrite the entire message.
 
 2. REALISTIC SEQUENCE ARC — this is outbound cold recruiting, not a post-call summary:
-   - Message 1 = cold opener. No prior contact has occurred. Candidate has not replied. No call has happened.
-   - Message 2 = follow-up assuming Message 1 was SENT but received NO REPLY. The candidate has not responded yet. Write with a completely NEW angle — a different hook, a specific challenge you're facing, a time-sensitive context. NEVER: "As we discussed", "following up on our call", "as I mentioned", "I wanted to provide more info on what we talked about". None of these. A call has NOT happened.
-   - Message 3 (if any) = graceful close. Acknowledge they may not be interested now, leave the door open for later.
-   - The arc must reflect REALISTIC cold outreach timing: Message 1 sent → no reply → Message 2 (new angle, ~1 week later) → no reply → Message 3 (close).
+   - Message 1 = COLD OPENER. No prior contact has occurred. Open with the specific research finding or background detail. State the role/intent in 1-2 sentences. End with a low-friction ask (a specific day for a 15-20 min call). DO NOT assume a previous call happened.
+   - Message 2 = SILENCE FOLLOW-UP (sent ~5-7 days after Message 1 if no reply). The candidate has NOT replied. The candidate has NOT had a call. REQUIRED: a NEW, DISTINCT hook — not the same pitch reworded.
+     ❌ FORBIDDEN: a Message 2 that is "Your experience with [generic skill] could be valuable. We're working on [generic problem]. Can we schedule a call?" — this is just Message 1 rephrased. The model must avoid this.
+     ❌ FORBIDDEN: "As we discussed", "following up on our call", "as I mentioned", "I wanted to provide more info on what we talked about". A call has NOT happened. NEVER imply prior dialogue.
+     ✓ GOOD: a SPECIFIC new angle — a recent company milestone, a concrete technical question you'd want their take on, a hypothesis about why they should care given their work, a piece of news in their field. The angle in Message 2 must be DIFFERENT in TOPIC from Message 1, not just in wording.
+   - Message 3 (if any) = SOFT CLOSE. The candidate has STILL not replied. Two valid patterns:
+     a) Brief low-stakes goodbye: "Last note from me — happy to share what we're building anytime. Door's open." NO call ask. NO scheduling. The candidate has been silent, not declined — DO NOT write "may not be the right fit at this time" (they never engaged).
+     b) Different door entirely: a single low-effort ask — would they refer someone, would they share a quick take on a specific question, anything that costs them <5 minutes.
+   - The arc must reflect REALISTIC cold outreach timing: Message 1 → silence → Message 2 (new angle, ~1 week later) → silence → Message 3 (soft close).
+   - DISTINCTNESS TEST before returning: read Message 1 and Message 2 side by side. If they could be swapped without losing meaning, rewrite Message 2 with a different hook entirely.
 
 3. BANNED OPENERS — completely forbidden:
    - "I wanted to follow up"
