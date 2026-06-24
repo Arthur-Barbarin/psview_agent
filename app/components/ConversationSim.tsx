@@ -1,20 +1,36 @@
 "use client";
 import { useState } from "react";
-import { AgentConfig, Candidate, Company, ConversationMessage, CritiqueResult, Message, Plan, ReplyResult } from "../types";
+import { AgentConfig, AgentReplyResult, Candidate, Company, ConversationMessage, CritiqueResult, Message, Plan, Signal, ToolCall } from "../types";
 import ReasoningBox from "./ReasoningBox";
 
-const SIGNAL_COLOR = {
+const SIGNAL_COLOR: Record<Signal, string> = {
   interested: "bg-green-100 text-green-700",
   neutral: "bg-gray-100 text-gray-600",
   hesitant: "bg-yellow-100 text-yellow-700",
   declined: "bg-red-100 text-red-700",
 };
 
-const SIGNAL_LABEL = {
+const SIGNAL_LABEL: Record<Signal, string> = {
   interested: "🟢 Interested",
   neutral: "⚪ Neutral",
   hesitant: "🟡 Hesitant",
   declined: "🔴 Declined",
+};
+
+const TOOL_LABEL: Record<ToolCall["name"], string> = {
+  classify_signal: "Classify signal",
+  compose_response: "Compose response",
+  revise_remaining_plan: "Revise remaining plan",
+  close_thread: "Close thread",
+  flag_concern: "Flag concern",
+};
+
+const TOOL_ICON: Record<ToolCall["name"], string> = {
+  classify_signal: "🔍",
+  compose_response: "✍️",
+  revise_remaining_plan: "♻️",
+  close_thread: "🚪",
+  flag_concern: "🚩",
 };
 
 export default function ConversationSim({
@@ -39,15 +55,16 @@ export default function ConversationSim({
   const [activeMessageIndex, setActiveMessageIndex] = useState<number | null>(null);
   const [conversation, setConversation] = useState<ConversationMessage[]>([]);
   const [reply, setReply] = useState("");
-  const [lastReason, setLastReason] = useState<ReplyResult | null>(null);
+  const [lastResult, setLastResult] = useState<AgentReplyResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [planRevised, setPlanRevised] = useState(false);
-  const [adaptReasoning, setAdaptReasoning] = useState<string | null>(null);
-  const [showAdaptReason, setShowAdaptReason] = useState(true);
+  const [threadClosed, setThreadClosed] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const sendReply = async () => {
     if (!reply.trim() || activeMessageIndex === null) return;
     setLoading(true);
+    setError(null);
     const currentMsg = plan.messages[activeMessageIndex];
 
     const newConv: ConversationMessage[] = [
@@ -56,90 +73,50 @@ export default function ConversationSim({
       { role: "candidate", content: reply },
     ];
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 55000);
+    const remainingMessages = plan.messages.slice(activeMessageIndex + 1);
 
     try {
-      const replyRes = await fetch("/api/reply", {
+      const res = await fetch("/api/agent-reply", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          company, personality: config.personality, candidate, intent,
-          conversation: newConv, candidateReply: reply,
+          company,
+          personality: config.personality,
+          candidate,
+          intent,
+          conversation: newConv,
+          candidateReply: reply,
+          remainingMessages,
         }),
-        signal: controller.signal,
       });
-      const result: ReplyResult = await replyRes.json();
-      setLastReason(result);
+      const result = await res.json();
+      if (result.error) throw new Error(result.error);
+      const agentResult = result as AgentReplyResult;
+      setLastResult(agentResult);
 
       const updatedConv: ConversationMessage[] = [
-        ...newConv, { role: "agent", content: result.response },
+        ...newConv,
+        { role: "agent", content: agentResult.response },
       ];
       setConversation(updatedConv);
       setReply("");
 
-      const remaining = plan.messages.slice(activeMessageIndex + 1);
-      if (remaining.length > 0) {
-        const adaptRes = await fetch("/api/adapt", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            company, personality: config.personality, candidate, intent,
-            conversation: updatedConv, signal: result.signal, remainingMessages: remaining,
-          }),
-          signal: controller.signal,
-        });
-        const adapted = await adaptRes.json();
-        if (adapted.revised) {
-          const revisedMessages: Message[] = adapted.messages;
-          const newMessages: Message[] = [
-            ...plan.messages.slice(0, activeMessageIndex + 1),
-            ...revisedMessages,
-          ];
-          const newPlan = { ...plan, messages: newMessages };
-          setPlan(newPlan);
-          setPlanRevised(true);
-          setAdaptReasoning(adapted.reasoning);
-          setShowAdaptReason(true);
-
-          // Run critique on adapted messages to close the symmetry loop
-          try {
-            const adaptCritiqueRes = await fetch("/api/critique", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ personality: config.personality, messages: revisedMessages }),
-              signal: controller.signal,
-            });
-            const adaptCritique: CritiqueResult & { error?: string } = await adaptCritiqueRes.json();
-
-            if (!adaptCritique.error && adaptCritique.messages?.length === revisedMessages.length) {
-              setCritique(adaptCritique);
-              // Apply any auto-fixes from the critique
-              if ((adaptCritique.violations?.length ?? 0) > 0) {
-                const fixedMessages: Message[] = [
-                  ...plan.messages.slice(0, activeMessageIndex + 1),
-                  ...adaptCritique.messages,
-                ];
-                setPlan({ ...newPlan, messages: fixedMessages });
-              }
-            } else {
-              // Critique unavailable or length mismatch — clear stale critique banner
-              setCritique(null);
-            }
-          } catch {
-            // If critique of adapted plan fails, clear the stale initial critique banner
-            setCritique(null);
-          }
-        }
+      if (agentResult.revisedMessages && agentResult.revisedMessages.length > 0) {
+        const newMessages: Message[] = [
+          ...plan.messages.slice(0, activeMessageIndex + 1),
+          ...agentResult.revisedMessages,
+        ];
+        setPlan({ ...plan, messages: newMessages });
+        setPlanRevised(true);
+        // The critique was for the previous plan; clear it so we don't claim
+        // self-check passed on messages that were just rewritten.
+        setCritique(null);
       }
-    } catch (err: unknown) {
-      const isAbort = err instanceof Error && err.name === "AbortError";
-      if (isAbort) {
-        // Surface a brief error without crashing
-        setLastReason({ signal: "neutral", response: "", reasoning: "Request timed out. Please try again." });
-      }
+
+      if (agentResult.closed) setThreadClosed(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Agent request failed. Try again.");
     } finally {
-      clearTimeout(timeout);
       setLoading(false);
     }
   };
@@ -148,14 +125,18 @@ export default function ConversationSim({
     <div className="space-y-6">
       <div>
         <h2 className="text-lg font-semibold text-gray-900">Conversation simulator</h2>
-        <p className="text-sm text-gray-500 mt-0.5">No real messages sent. Click any message to simulate a candidate reply.</p>
+        <p className="text-sm text-gray-500 mt-0.5">
+          No real messages sent. The agent picks its own tools — watch the trace.
+        </p>
       </div>
 
       {/* Fit check */}
       {plan.fitCheck && (
         <div className={`rounded-lg border p-4 ${plan.fitCheck.shouldReach ? "bg-green-50 border-green-200" : "bg-amber-50 border-amber-200"}`}>
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-sm font-semibold">{plan.fitCheck.shouldReach ? "✓ Candidate fit confirmed" : "⚠ Candidate fit is weak"}</span>
+            <span className="text-sm font-semibold">
+              {plan.fitCheck.shouldReach ? "✓ Candidate fit confirmed" : "⚠ Candidate fit is weak"}
+            </span>
             <span className={`ml-auto text-xs font-bold px-2 py-0.5 rounded-full ${plan.fitCheck.shouldReach ? "bg-green-200 text-green-800" : "bg-amber-200 text-amber-800"}`}>
               Fit score: {plan.fitCheck.score}/10
             </span>
@@ -197,20 +178,18 @@ export default function ConversationSim({
       </div>
 
       {/* Plan revised banner */}
-      {planRevised && adaptReasoning && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg overflow-hidden">
-          <div className="px-4 py-3 flex items-center gap-2">
-            <span className="text-amber-600 font-bold">↻</span>
-            <p className="text-sm font-medium text-amber-800">Agent revised its strategy based on candidate signal</p>
-            <button onClick={() => setShowAdaptReason(!showAdaptReason)} className="ml-auto text-xs text-amber-600 hover:text-amber-800 font-medium">
-              {showAdaptReason ? "Hide" : "Show"} reasoning
-            </button>
-          </div>
-          {showAdaptReason && (
-            <div className="px-4 pb-3 text-xs text-amber-700 leading-relaxed border-t border-amber-200 pt-2">
-              {adaptReasoning}
-            </div>
-          )}
+      {planRevised && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 flex items-center gap-2">
+          <span className="text-amber-600 font-bold">↻</span>
+          <p className="text-sm font-medium text-amber-800">Agent revised its remaining messages — see the amber-bordered cards below.</p>
+        </div>
+      )}
+
+      {/* Thread closed banner */}
+      {threadClosed && (
+        <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 flex items-center gap-2">
+          <span className="text-red-600 font-bold">🚪</span>
+          <p className="text-sm font-medium text-red-800">Agent closed the thread — no further messages will be sent.</p>
         </div>
       )}
 
@@ -238,7 +217,14 @@ export default function ConversationSim({
               <div className="p-4">
                 <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{msg.body}</p>
                 <button
-                  onClick={() => { setActiveMessageIndex(i); setConversation([]); setLastReason(null); }}
+                  onClick={() => {
+                    setActiveMessageIndex(i);
+                    setConversation([]);
+                    setLastResult(null);
+                    setPlanRevised(false);
+                    setThreadClosed(false);
+                    setError(null);
+                  }}
                   className="mt-3 text-xs font-medium text-violet-600 hover:text-violet-800 flex items-center gap-1"
                 >
                   ▶ Simulate reply to this message
@@ -266,18 +252,64 @@ export default function ConversationSim({
         </div>
       )}
 
-      {/* Signal */}
-      {lastReason && lastReason.signal && (
-        <div className="space-y-2">
-          <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${SIGNAL_COLOR[lastReason.signal]}`}>
-            {SIGNAL_LABEL[lastReason.signal]}
+      {/* Tool-call trace — the proof of autonomy */}
+      {lastResult && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Agent tool trace</p>
+            <span className="text-xs text-gray-400">{lastResult.iterations} loop iteration{lastResult.iterations !== 1 ? "s" : ""}</span>
           </div>
-          <ReasoningBox reasoning={lastReason.reasoning} />
+
+          <div className="bg-slate-900 rounded-lg p-4 space-y-2.5 font-mono text-xs">
+            <div className="flex items-center gap-2 text-slate-400 pb-2 border-b border-slate-700">
+              <span>$</span>
+              <span>agent.run(candidate_reply)</span>
+            </div>
+            {lastResult.trace.map((call, i) => (
+              <div key={i} className="space-y-1">
+                <div className="flex items-start gap-2 text-slate-200">
+                  <span className="text-slate-500 select-none">{String(i + 1).padStart(2, "0")}.</span>
+                  <span>{TOOL_ICON[call.name]}</span>
+                  <span className="text-violet-300 font-semibold">{TOOL_LABEL[call.name]}</span>
+                </div>
+                {call.summary && (
+                  <p className="text-slate-400 pl-9 leading-relaxed">{call.summary}</p>
+                )}
+              </div>
+            ))}
+            <div className="flex items-center gap-2 text-emerald-400 pt-2 border-t border-slate-700">
+              <span>✓</span>
+              <span>agent.complete()</span>
+            </div>
+          </div>
+
+          {lastResult.fallback && (
+            <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+              ⚠ {lastResult.fallback}
+            </div>
+          )}
+
+          <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${SIGNAL_COLOR[lastResult.signal]}`}>
+            {SIGNAL_LABEL[lastResult.signal]}
+          </div>
+
+          {lastResult.flaggedConcern && (
+            <div className="bg-orange-50 border border-orange-200 rounded-lg px-4 py-3">
+              <p className="text-xs font-semibold text-orange-700 mb-1">🚩 Flagged for human</p>
+              <p className="text-sm text-orange-800">{lastResult.flaggedConcern}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+          <p className="text-sm text-red-700">{error}</p>
         </div>
       )}
 
       {/* Reply input */}
-      {activeMessageIndex !== null && (
+      {activeMessageIndex !== null && !threadClosed && (
         <div className="space-y-2">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
             Simulate candidate reply to message {activeMessageIndex + 1}
@@ -294,7 +326,7 @@ export default function ConversationSim({
             disabled={!reply.trim() || loading}
             className="w-full bg-violet-600 hover:bg-violet-700 disabled:bg-gray-200 disabled:text-gray-400 text-white font-medium py-2.5 px-4 rounded-lg transition-colors text-sm"
           >
-            {loading ? "Agent is thinking…" : "Send reply (Cmd/Ctrl + Enter)"}
+            {loading ? "Agent is reasoning…" : "Send reply (Cmd/Ctrl + Enter)"}
           </button>
         </div>
       )}

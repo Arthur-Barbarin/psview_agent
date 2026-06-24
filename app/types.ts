@@ -45,6 +45,32 @@ export interface ReplyResult {
   response: string;
 }
 
+export type Signal = "interested" | "neutral" | "hesitant" | "declined";
+
+export interface ToolCall {
+  name:
+    | "classify_signal"
+    | "compose_response"
+    | "revise_remaining_plan"
+    | "close_thread"
+    | "flag_concern";
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  args: any;
+  // Human-readable one-line summary of what this call did. The agent fills this in via args.
+  summary?: string;
+}
+
+export interface AgentReplyResult {
+  trace: ToolCall[];
+  signal: Signal;
+  response: string;
+  revisedMessages?: Message[];
+  closed?: boolean;
+  flaggedConcern?: string;
+  iterations: number;
+  fallback?: string; // set if the loop produced nothing usable
+}
+
 export interface FitCheck {
   shouldReach: boolean;
   score: number; // 1-10

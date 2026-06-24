@@ -1,8 +1,8 @@
 # PSVIEW Recruiting Agent
 
-A mini web app that deploys an autonomous AI recruiting agent — configured from company context, not from a prompt template.
+An autonomous AI recruiting agent that configures itself from company context, plans its own outreach, verifies its own messages, and chooses its own actions during the conversation.
 
-**Stack:** Next.js 14 · TypeScript · Tailwind · Groq (Llama 3.3 70B)
+**Stack:** Next.js 14 · TypeScript · Tailwind · Groq (Llama 3.3 70B, native tool calling)
 
 ---
 
@@ -11,13 +11,21 @@ A mini web app that deploys an autonomous AI recruiting agent — configured fro
 Three connected stages in a single-page flow:
 
 **1. Company context form**
-Captures name, description, culture, hiring profiles, and desired tone. Specific inputs produce a specific agent — a Mistral AI recruiter sounds nothing like a McKinsey recruiter.
+Captures name, description, culture, hiring profiles, and tone. A specific input produces a specific agent — a Mistral AI recruiter sounds nothing like a McKinsey recruiter.
 
-**2. Agent configuration**
-The agent reads the company context and derives its own personality model: voice principles, values to embody, things it never does, how it opens and closes. It then takes a candidate profile and outreach intent and autonomously plans a full message sequence — deciding the number of touchpoints, the narrative arc, and the specific angle for this candidate — before generating a single word.
+**2. Agent configuration & planning**
+The agent derives its own personality model (voice principles, values, things it never does, opening/closing style). Then it runs a fit check on the candidate, generates a complete outreach sequence, and runs a self-critique pass against its own avoids list — auto-fixing any violations before the messages are shown.
 
-**3. Conversation simulator**
-Shows the planned message sequence. You type a candidate reply; the agent reads the signal (interested / neutral / hesitant / declined), reasons about how to respond given its personality, replies in character, and re-plans the remaining sequence. No emails sent. No LinkedIn messages. Full simulation.
+**3. Conversation simulator with an agentic loop**
+When a candidate replies, the agent doesn't follow a script. It receives a toolbox and decides — turn by turn, via Groq's native tool calling — which tools to invoke and in what order:
+
+- `classify_signal` — interested / neutral / hesitant / declined
+- `compose_response` — write the reply in character
+- `revise_remaining_plan` — rewrite future messages if the signal changes the strategy
+- `close_thread` — graceful shutdown for declined candidates
+- `flag_concern` — escalate to a human when needed
+
+The tool trace is rendered live in the UI as proof of autonomous reasoning. The orchestration is the model's, not the code's.
 
 ---
 
@@ -27,47 +35,54 @@ Shows the planned message sequence. You type a candidate reply; the agent reads 
 Company context
       │
       ▼
-PersonalityDeriver  ──→  Personality model (threaded through every subsequent call)
+PersonalityDeriver          → Personality model
       │
       ▼
-StrategyPlanner     ──→  Fit check + engagement strategy + message sequence
+FitCheck + StrategyPlanner  → Score + outreach sequence
       │
       ▼
-   Critique  ◀──────────────────────────────────────────────────────────┐
-  (self-check)  ──→  Violations auto-fixed before user ever sees output │
-      │                                                                  │
-      ▼                                                                  │
-ConversationAgent   ──→  In-character replies (uses personality + history)
+Critique pass               → Reads messages, auto-fixes violations
       │
       ▼
-    Adapt  ──→  Re-plans remaining messages based on detected signal ────┘
-                (output also runs through Critique before display)
+─────────── plan time ╶╶╶ run time ───────────
+      │
+      ▼
+Agentic conversation loop  → Model picks tools each turn
+   ┌──────────────────────────────────────────┐
+   │ classify_signal → compose_response       │
+   │                 → revise_remaining_plan  │
+   │                 → close_thread           │
+   │                 → flag_concern           │
+   │ (max 6 iterations, model decides exit)   │
+   └──────────────────────────────────────────┘
 ```
 
-Each stage is a separate API call with its own prompt. The personality model is derived once and threaded through every subsequent call — not regenerated per message. The agent's reasoning is surfaced at each step via an open reasoning panel so the intelligence is immediately visible.
+Five capabilities; one model deciding which to use; the trace shown to the user.
 
 ---
 
 ## Choices
 
-- **Groq + Llama 3.3 70B** — free tier, fast enough to feel real-time, capable enough for multi-step reasoning
-- **JSON-mode responses throughout** — every API call returns structured output with a `reasoning` field alongside the actual content, making the intelligence visible rather than opaque
-- **No database** — state lives in localStorage for demo scope; adding Supabase would be a one-step extension
-- **Next.js API routes** — no separate backend needed, deploys to Vercel in one command
+- **Groq + Llama 3.3 70B** — fast enough for a real-time tool loop, capable enough for multi-step reasoning, free tier
+- **Native tool calling, not JSON-schema prompting** — the agentic loop genuinely lets the model pick its next action; tools have structured args and the model's choice is the unit of autonomy
+- **Self-critique before runtime** — a second model pass reads the planner's output against the personality's `avoids` list and rewrites violations. Catches mistakes before the human ever sees them
+- **Tool trace in the UI** — invisible intelligence doesn't count; the trace is rendered as a terminal-style timeline next to the agent's response
+- **No database** — state lives in localStorage for demo scope
+- **Next.js API routes** — one-command Vercel deploy
 
 ---
 
 ## What makes it intelligent and not just an LLM call
 
-> After every candidate reply, the agent classifies a signal, rewrites its own remaining outreach plan based on that signal, then runs a second self-verification pass on the revised plan — catching its own rule violations and fixing them before output reaches the user. The personality model, the strategy, the fit check, and every message revision are all derived autonomously; none are hardcoded or templated.
+> Given a candidate reply, the agent decides — turn by turn, via native tool calling — which capabilities to invoke: classify the signal, compose a response, revise the future plan, close the thread, or flag a concern. The orchestration is the model's, not the code's. Before that, a separate critique pass reads the planner's output against the personality's avoids list and auto-fixes violations. The tool trace is shown in the UI as it happens.
 
 ---
 
 ## Setup
 
 ```bash
-git clone https://github.com/Arthur-Barbarin/PSview_work
-cd PSview
+git clone https://github.com/your-handle/psview-agent
+cd psview-app
 npm install
 cp .env.example .env.local
 # add your GROQ_API_KEY (free at console.groq.com)

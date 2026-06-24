@@ -22,6 +22,7 @@ export default function Home() {
   const [apiError, setApiError] = useState<string | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (step > 1) setRestored(true);
     const t = setTimeout(() => setRestored(false), 3000);
     return () => clearTimeout(t);
