@@ -44,12 +44,22 @@ async function tavilySearch(query: string): Promise<{ answer: string | null; res
     return { answer: null, results: [] };
   }
   const data = await res.json();
-  const results: TavilyResult[] = (data.results ?? []).slice(0, 4).map((r: { title: string; url: string; content: string; score?: number }) => ({
-    title: r.title,
-    url: r.url,
-    content: r.content,
-    score: r.score,
-  }));
+  const BLOCKED_DOMAINS = ["facebook.com", "twitter.com", "x.com", "instagram.com", "tiktok.com", "pinterest.com"];
+  const results: TavilyResult[] = (data.results ?? [])
+    .filter((r: { url: string; score?: number }) => {
+      try {
+        const host = new URL(r.url).hostname.replace("www.", "");
+        return !BLOCKED_DOMAINS.some((d) => host === d || host.endsWith(`.${d}`));
+      } catch { return true; }
+    })
+    .filter((r: { score?: number }) => (r.score ?? 1) > 0.3)
+    .slice(0, 3)
+    .map((r: { title: string; url: string; content: string; score?: number }) => ({
+      title: r.title,
+      url: r.url,
+      content: r.content,
+      score: r.score,
+    }));
   return { answer: data.answer ?? null, results };
 }
 

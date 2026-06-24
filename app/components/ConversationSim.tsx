@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { AgentConfig, AgentReplyResult, Candidate, Company, ConversationMessage, CritiqueResult, Message, Plan, Signal, ToolCall } from "../types";
 import ReasoningBox from "./ReasoningBox";
 
@@ -60,6 +60,7 @@ export default function ConversationSim({
   const [planRevised, setPlanRevised] = useState(false);
   const [threadClosed, setThreadClosed] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const replyRef = useRef<HTMLDivElement>(null);
 
   const sendReply = async () => {
     if (!reply.trim() || activeMessageIndex === null) return;
@@ -254,7 +255,7 @@ export default function ConversationSim({
             >
               <div className={`px-4 py-2.5 flex items-center justify-between ${isActive ? "bg-violet-50" : isRevised ? "bg-amber-50" : "bg-gray-50"}`}>
                 <div className="flex items-center gap-2">
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isActive ? "bg-violet-200 text-violet-800" : "bg-gray-200 text-gray-600"}`}>
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${isActive ? "bg-violet-200 text-violet-800" : "bg-gray-200 text-gray-600"}`}>
                     {msg.channel} {i + 1}
                   </span>
                   {isRevised && <span className="text-xs text-amber-600 font-medium">↻ revised</span>}
@@ -272,10 +273,11 @@ export default function ConversationSim({
                     setPlanRevised(false);
                     setThreadClosed(false);
                     setError(null);
+                    setTimeout(() => replyRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 80);
                   }}
-                  className="mt-3 text-xs font-medium text-violet-600 hover:text-violet-800 flex items-center gap-1"
+                  className="mt-4 w-full border border-violet-300 bg-violet-50 hover:bg-violet-100 text-violet-700 font-medium text-sm py-2 rounded-lg transition-colors flex items-center justify-center gap-1.5"
                 >
-                  ▶ Simulate reply to this message
+                  ▶ Simulate candidate reply
                 </button>
               </div>
             </div>
@@ -358,7 +360,7 @@ export default function ConversationSim({
 
       {/* Reply input */}
       {activeMessageIndex !== null && !threadClosed && (
-        <div className="space-y-2">
+        <div ref={replyRef} className="space-y-2">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
             Simulate candidate reply to message {activeMessageIndex + 1}
           </p>
