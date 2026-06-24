@@ -164,6 +164,26 @@ export default function AgentConfigView({
               ))}
             </ul>
           )}
+          {pending.plan.research && pending.plan.research.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-amber-200">
+              <p className="text-[11px] font-semibold text-amber-700 uppercase tracking-wider mb-1.5">Based on agent web research</p>
+              <div className="space-y-1.5">
+                {pending.plan.research.map((r, i) =>
+                  r.skipped ? (
+                    <p key={i} className="text-xs text-gray-500 italic">Agent chose not to search — {r.reasoning}</p>
+                  ) : (
+                    <div key={i} className="text-xs text-gray-600">
+                      <p className="text-gray-500">🔎 <span className="font-mono">&quot;{r.query}&quot;</span></p>
+                      {r.results.slice(0, 2).map((s, j) => (
+                        <a key={j} href={s.url} target="_blank" rel="noopener noreferrer" className="block ml-5 text-violet-600 hover:underline truncate">· {s.title}</a>
+                      ))}
+                    </div>
+                  )
+                )}
+              </div>
+              <p className="text-[11px] text-gray-500 mt-1.5 italic">If these sources are about a different person sharing the candidate&apos;s name, the fit assessment may be off.</p>
+            </div>
+          )}
           <div className="flex gap-2 pt-1">
             <button
               onClick={() => setPending(null)}
