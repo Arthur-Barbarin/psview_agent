@@ -45,14 +45,19 @@ async function tavilySearch(query: string): Promise<{ answer: string | null; res
   }
   const data = await res.json();
   const BLOCKED_DOMAINS = ["facebook.com", "twitter.com", "x.com", "instagram.com", "tiktok.com", "pinterest.com"];
+  // Patterns that indicate a generic directory listing, not a page about the specific candidate
+  const BLOCKED_PATH_PATTERNS = [/\/speakers\/?$/i, /\/pub\/dir\//i, /\/authors?\//i, /\/people\//i, /\/contributors?\//i];
   const results: TavilyResult[] = (data.results ?? [])
     .filter((r: { url: string; score?: number }) => {
       try {
-        const host = new URL(r.url).hostname.replace("www.", "");
-        return !BLOCKED_DOMAINS.some((d) => host === d || host.endsWith(`.${d}`));
+        const parsed = new URL(r.url);
+        const host = parsed.hostname.replace("www.", "");
+        if (BLOCKED_DOMAINS.some((d) => host === d || host.endsWith(`.${d}`))) return false;
+        if (BLOCKED_PATH_PATTERNS.some((p) => p.test(parsed.pathname))) return false;
+        return true;
       } catch { return true; }
     })
-    .filter((r: { score?: number }) => (r.score ?? 1) > 0.3)
+    .filter((r: { score?: number }) => (r.score ?? 1) > 0.5)
     .slice(0, 3)
     .map((r: { title: string; url: string; content: string; score?: number }) => ({
       title: r.title,
