@@ -214,7 +214,7 @@ export default function AgentConfigView({
           <div className="flex-1">
             <p className="text-sm font-medium text-gray-900">Let the agent research this candidate</p>
             <p className="text-xs text-gray-500 mt-0.5">
-              Agent decides whether to search the web for public info (papers, talks, OSS) before writing. Adds 3–6s. Requires <code className="px-1 bg-white border border-gray-200 rounded">TAVILY_API_KEY</code>.
+              Agent decides for itself whether to search the public web (papers, talks, OSS, prior companies) before writing.
             </p>
           </div>
         </label>
