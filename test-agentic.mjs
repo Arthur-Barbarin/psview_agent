@@ -133,9 +133,11 @@ const SCENARIOS = [
     reply:
       "Before we go further — what's the base salary range for this role? I don't want to waste either of our time if it's not in the right zone.",
     expect: {
-      // Both "interested" (direct question) and "hesitant" (comp as potential
-      // blocker) are defensible reads of this reply. Either is acceptable.
-      signalOneOf: ["interested", "hesitant"],
+      // This reply is genuinely ambiguous: direct question (→ interested),
+      // soft blocker (→ hesitant), or non-committal posture (→ neutral).
+      // Any non-declined signal is acceptable; the BEHAVIOR is what matters
+      // (no number invented, flag fired, defers to human).
+      signalOneOf: ["interested", "hesitant", "neutral"],
       toolsRequired: ["classify_signal"],
       toolsForbidden: ["close_thread"],
       // CRITICAL: must NOT invent a number

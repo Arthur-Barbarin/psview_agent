@@ -19,8 +19,11 @@ const tools = [
       name: "classify_signal",
       description:
         "Classify the candidate's last reply. Call this first, exactly once. " +
-        "Rules: any direct question = interested; explicit 'not looking'/'happy where I am' with no question = declined; " +
-        "specific concern (relocation, comp, timing) while still engaging = hesitant; non-committal one-liner = neutral.",
+        "Rules: ANY direct question about the role, team, infra, comp, or process = interested (curiosity is engagement, even if YOU can't answer it). " +
+        "Explicit 'not looking' / 'happy where I am' with NO question = declined. " +
+        "An explicit BLOCKER raised by the candidate (relocation, timing constraint, current commitments) while still engaging = hesitant. " +
+        "Non-committal one-liner with no question and no clear stance = neutral. " +
+        "IMPORTANT: A question is NOT a blocker. Asking about salary or team size is interested, not hesitant — the candidate is engaging.",
       parameters: {
         type: "object",
         properties: {
@@ -103,7 +106,11 @@ const tools = [
     function: {
       name: "flag_concern",
       description:
-        "Flag something a human recruiter should know — a sensitive concern, an unusual situation, a question outside your authority (specific comp numbers, visa, equity details). Optional. Does not replace compose_response.",
+        "Flag something a human recruiter must know. Call this — it is NOT optional — whenever the candidate mentions: " +
+        "(1) a legal constraint: non-compete clause, NDA, IP restriction, garden leave; " +
+        "(2) a question requiring specific authority: exact salary, equity breakdown, visa sponsorship, notice period buyout. " +
+        "Also call for any other sensitive situation a human should review before you proceed. " +
+        "Always call compose_response too — flag_concern does not replace your reply, it accompanies it.",
       parameters: {
         type: "object",
         properties: {
@@ -145,18 +152,19 @@ Always:
 1. classify_signal FIRST (exactly once).
 2. Then either compose_response (for interested/neutral/hesitant) OR close_thread (for declined). Never both.
 3. revise_remaining_plan only when the signal materially changes the strategy.
-4. flag_concern is optional — only if a human should know.
+4. flag_concern is MANDATORY when: the candidate mentions a non-compete, NDA, visa need, or asks for specific comp/equity numbers. Call it alongside compose_response, not instead of it.
 
 When you've taken all the actions you need, stop calling tools and produce a brief one-sentence summary.
 
 PERSONALITY RULES — always enforce:
 - Never violate any item in your "avoids" list.
 - Banned openers: "I wanted to follow up", "Following up", "I hope you've had a chance", "Just checking in", "I wanted to reach out", "I hope this finds you".
-- Every response (except close_thread) ends with ONE concrete CTA with a real timeframe.
+- Every response (except close_thread) ends with ONE concrete CTA. The CTA MUST contain a specific day-of-week (Monday/Tuesday/Wednesday/Thursday/Friday) OR one of: "tomorrow", "next week", "this week". Vague phrasings — "soon", "in the coming days", "in the near future", "at your convenience", "shortly" — are NOT acceptable. Pick a real day.
 - Reference details from the actual conversation. Nothing generic.
 
 GROUNDING RULE — strict, non-negotiable:
 - Never volunteer specific numbers (team sizes, headcount, salary ranges, growth targets, revenue), hardware specs (GPU models, cluster sizes), product details, customer names, technical roadmap, or any claim about the company that wasn't in the COMPANY CONTEXT above.
+- This also bans QUALITATIVE claims about company internals when context doesn't support them: "team is small but mighty", "highly specialized engineers", "custom clusters", "world-class infra" — these are all ungrounded if context doesn't say so. Either cite something from context verbatim, or defer to a human.
 - If the candidate asks for those specifics, do ONE of:
   (a) Offer to get the right human (hiring manager, tech lead, recruiter) on a call who can answer precisely, then propose a concrete time.
   (b) Call flag_concern to flag the question for a human, and in compose_response say you're routing it.

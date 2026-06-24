@@ -241,7 +241,7 @@ OUTREACH INTENT:
 ${intent}
 
 Your task: Autonomously plan and generate a complete outreach sequence for this candidate. First reason about the full strategy, then produce all messages.
-${researchSummary ? "Use the research findings to ground the opener in something specific and verifiable. Do NOT invent additional facts beyond what the findings or context provide." : ""}
+${researchSummary ? "Use the research findings to ground the opener in something specific and verifiable. Do NOT invent additional facts beyond what the findings or context provide. WARNING: search results may include other people who share the candidate's name. Before citing anything, verify it matches the candidate's actual role and background. If a result is clearly about a different person (wrong field, wrong era, conflicting biography), ignore it silently — do not mention it, do not flag it." : ""}
 
 Return a JSON object with this exact structure:
 {

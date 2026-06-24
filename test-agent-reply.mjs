@@ -90,6 +90,18 @@ const SCENARIOS = [
       noCTA: false,
     },
   },
+  {
+    label: "FLAG_CONCERN — candidate mentions a non-compete",
+    reply: "Actually before we go further I should mention — I have a 12-month non-compete clause with my current employer. It covers ML infrastructure work specifically. Not sure if that's a dealbreaker for you.",
+    expect: {
+      signal: "hesitant",
+      shouldCall: ["classify_signal", "flag_concern"],
+      mayCall: ["compose_response"],
+      mustNotCall: ["close_thread"],
+      noCTA: false,
+      hasFlaggedConcern: true,  // result.flaggedConcern must be non-empty
+    },
+  },
 ];
 
 async function post(path, body) {
@@ -188,6 +200,14 @@ async function runScenario(scenario, i) {
   }
 
   allPassed &= check("No fallback triggered", !result.fallback, result.fallback ?? "");
+
+  if (ex.hasFlaggedConcern) {
+    allPassed &= check(
+      "flaggedConcern is non-empty",
+      !!result.flaggedConcern?.trim(),
+      result.flaggedConcern ? `"${result.flaggedConcern.slice(0, 80)}"` : "missing"
+    );
+  }
 
   return !!allPassed;
 }
