@@ -10,6 +10,7 @@ const steps = [
 export default function StepIndicator({ current }: { current: number }) {
   // Defer to client to avoid hydration mismatch with localStorage-persisted step
   const [mounted, setMounted] = useState(false);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setMounted(true), []);
   const active = mounted ? current : 1;
 

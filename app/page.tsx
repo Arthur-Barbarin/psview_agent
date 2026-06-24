@@ -23,8 +23,10 @@ export default function Home() {
   const [apiError, setApiError] = useState<string | null>(null);
 
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
     setMounted(true);
     if (step > 1) setRestored(true);
+    /* eslint-enable react-hooks/set-state-in-effect */
     const t = setTimeout(() => setRestored(false), 3000);
     return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
