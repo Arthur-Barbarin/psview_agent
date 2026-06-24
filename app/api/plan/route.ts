@@ -44,7 +44,17 @@ async function tavilySearch(query: string): Promise<{ answer: string | null; res
     return { answer: null, results: [] };
   }
   const data = await res.json();
-  const BLOCKED_DOMAINS = ["facebook.com", "twitter.com", "x.com", "instagram.com", "tiktok.com", "pinterest.com"];
+  const BLOCKED_DOMAINS = [
+    // Social network noise (mostly wrong-person matches)
+    "facebook.com", "twitter.com", "x.com", "instagram.com", "tiktok.com", "pinterest.com",
+    // French corporate registries — confirm a person is a director of X but tell you
+    // nothing about their professional background. Dominate searches for French founders.
+    "societe.com", "societe-info.com", "annonces-legales.fr", "infogreffe.fr",
+    "pappers.fr", "corporama.com", "verif.com", "bodacc.fr",
+    // International corporate registries with the same problem
+    "opencorporates.com", "duedil.com", "bizapedia.com", "corporateinformation.com",
+    "endole.co.uk", "companieshouse.gov.uk",
+  ];
   // Patterns that indicate a generic directory listing, not a page about the specific candidate
   const BLOCKED_PATH_PATTERNS = [/\/speakers\/?$/i, /\/pub\/dir\//i, /\/authors?\//i, /\/people\//i, /\/contributors?\//i];
   const results: TavilyResult[] = (data.results ?? [])
@@ -74,7 +84,7 @@ const researchTools = [
     function: {
       name: "research_candidate",
       description:
-        "Search the public web for information about this candidate — recent conference talks, papers, open-source contributions, blog posts, podcast appearances. Use this if their background suggests they have a public footprint (academic ML, OSS engineering, startup founders, conference speakers). Skip if their work is internal or low-visibility.",
+        "Search the public web for information about this candidate — recent conference talks, papers, open-source contributions, blog posts, podcast appearances, prior roles. Use this if their background suggests they have a public footprint. Query tips: start with the candidate's NAME alone or NAME + most distinctive past company/affiliation. AVOID querying just 'name + current company' — that surfaces corporate-registry noise. If the first search returns mostly low-signal results (corporate listings, directory pages, wrong-person matches), USE YOUR SECOND SEARCH with a different angle: try 'name + prior company', 'name + school', or 'name + technical specialty'. Skip only if the candidate's background is genuinely internal or low-visibility AND two reasonable queries would yield nothing.",
       parameters: {
         type: "object",
         properties: {
