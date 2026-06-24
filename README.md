@@ -114,6 +114,8 @@ Run all three: `node test-agentic.mjs && node test-research.mjs && node test-adv
 
 ## Setup
 
+Requires Node 18+. Runs on macOS (Intel and Apple Silicon), Linux, and Windows. No native dependencies, no platform-specific build steps.
+
 ```bash
 git clone <your-fork>
 cd psview-app
